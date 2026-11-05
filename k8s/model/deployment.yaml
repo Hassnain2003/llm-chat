@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inferenceforge-model
+  labels:
+    app: inferenceforge-model
+    component: model-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inferenceforge-model
+  template:
+    metadata:
+      labels:
+        app: inferenceforge-model
+        component: model-backend
+    spec:
+      # ── GPU scheduling ────────────────────────────────────────────────────
+      # Tolerate GPU taint applied by NVIDIA device plugin DaemonSet.
+      # Without this, the pod won't schedule on GPU nodes.
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      # Prefer GPU nodes but don't require them (allows CPU fallback locally)
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: "k8s.amazonaws.com/accelerator"
+                    operator: In
+                    values: ["nvidia-tesla-t4", "nvidia-tesla-a10g"]
+
+      containers:
+        - name: model-backend
+          # Local: use Ollama. GPU (AWS): swap to vllm image.
+          image: ollama/ollama:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 11434
+          env:
+            - name: OLLAMA_MODELS
+              value: "/models"
+          volumeMounts:
+            - name: model-storage
+              mountPath: /models
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "4000m"
+              memory: "8Gi"
+              # Uncomment on GPU nodes:
+              # nvidia.com/gpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+      volumes:
+        - name: model-storage
+          emptyDir: {}

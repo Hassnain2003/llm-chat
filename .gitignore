@@ -1,0 +1,35 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+.env.*
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Kubernetes
+*.kubeconfig
+*.yaml.runner
+
+# Docker
+*.dockerignore
+docker-compose.override.yml
+
+# Monitoring
+*.json.runner
+
+# Miscellaneous
+*.log
+*.swp
+*~
