@@ -70,7 +70,7 @@ nodeSelector:
 The HPA scales the **gateway** (not the model — GPU cold start is too slow for reactive scaling). It uses two metrics simultaneously:
 
 - **CPU utilisation** — standard K8s metric, triggers when gateways are compute-bound
-- **`llm-inference-forge_queue_depth`** — custom Prometheus metric via prometheus-adapter
+- **`llm-chat_queue_depth`** — custom Prometheus metric via prometheus-adapter
 
 Scaling on queue depth is smarter than scaling on CPU alone. A slow model will fill the queue before it stresses the gateway's CPU. The queue depth metric fires earlier and more predictably.
 
@@ -93,10 +93,10 @@ The entire environment difference is encoded in `values-local.yaml` vs `values-g
 
 ```bash
 # Local
-helm install llm-inference-forge ./chart -f chart/values-local.yaml
+helm install llm-chat ./chart -f chart/values-local.yaml
 
 # GPU
-helm install llm-inference-forge ./chart -f chart/values-gpu.yaml
+helm install llm-chat ./chart -f chart/values-gpu.yaml
 ```
 
 ---
@@ -107,11 +107,11 @@ Every metric has a `model` label so you can compare performance across different
 
 | Metric | Type | Why |
 |--------|------|-----|
-| `llm-inference-forge_requests_total` | Counter | Request rate and error rate |
-| `llm-inference-forge_request_duration_seconds` | Histogram | Latency SLOs — p50/p95/p99 |
-| `llm-inference-forge_queue_depth` | Gauge | HPA trigger + capacity planning |
-| `llm-inference-forge_tokens_total` | Counter | Throughput and cost estimation |
-| `llm-inference-forge_active_requests` | Gauge | Concurrency — spot saturation early |
-| `llm-inference-forge_backend_errors_total` | Counter | Backend health by error type |
+| `llm-chat_requests_total` | Counter | Request rate and error rate |
+| `llm-chat_request_duration_seconds` | Histogram | Latency SLOs — p50/p95/p99 |
+| `llm-chat_queue_depth` | Gauge | HPA trigger + capacity planning |
+| `llm-chat_tokens_total` | Counter | Throughput and cost estimation |
+| `llm-chat_active_requests` | Gauge | Concurrency — spot saturation early |
+| `llm-chat_backend_errors_total` | Counter | Backend health by error type |
 
 The latency histogram uses non-uniform buckets (0.1s to 60s) because LLM inference is slow and unpredictable. A bucket at 5s is more useful than one at 1s for this workload.

@@ -1,6 +1,6 @@
-# LLM Inference Forge
+# LLM Chat API
 
-> **Production-grade LLM inference platform on Kubernetes.** OpenAI-compatible API, request queuing, Prometheus metrics, and a Helm chart that switches between CPU (free, local) and GPU (AWS EKS) with two values.
+> **Production-ready LLM inference gateway on Kubernetes.** OpenAI-compatible chat API with request queuing, per-IP rate limiting, Prometheus metrics, Helm deployment, and CPU/GPU switching — deploy on a laptop or AWS EKS with a single flag.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
@@ -10,10 +10,20 @@
 
 ---
 
-## What it does
+## What this project provides
 
-Most "deploy an LLM" tutorials stop at `ollama run` or a single Docker container. LLM Inference Forge builds the production layer on top: the queue, the rate limiter, the metrics, the Helm chart, and the GPU node configuration.
+Most "deploy an LLM" guides end at `ollama run` or a bare Docker container. **LLM Chat API** adds the production layer on top:
 
+- A FastAPI gateway that exposes an OpenAI-compatible `/v1/chat/completions` endpoint
+- Per-IP request rate limiting (sliding window, configurable)
+- asyncio.Semaphore-backed request queue with configurable depth
+- Prometheus metrics: request rate, latency (p50/p95/p99), queue depth, token throughput, active requests, backend errors
+- A Grafana dashboard with 12 panels for operational visibility
+- A Helm chart that swaps between local CPU and cloud GPU by changing a single values file
+- Raw Kubernetes manifests for users who prefer kubectl apply over Helm
+- Terraform infrastructure for EKS, GPU node groups, and Karpenter provisioning
+
+Everything is self-contained in one repository — no shared libraries, no monolithic setup guides.
 
 ---
 
@@ -43,185 +53,230 @@ Test it:
 
 ```bash
 curl http://localhost:8080/health
-curl http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
+curl http://localhost:8080/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
   -d '{"model":"gemma3:1b","messages":[{"role":"user","content":"Say hello in one sentence."}]}'
 ```
 
 ---
 
-## Kubernetes deployment
+## Deploying to Kubernetes
+
+### Option A: Helm (recommended)
 
 ```bash
-# Install the Helm chart
-helm repo add llm-inference-forge https://your-org.github.io/llm-inference-forge
-helm install llm-inference-forge llm-inference-forge/llm-inference-forge -f values-gpu.yaml
-
-# Or use the raw manifests
-kubectl create namespace llm-inference-forge
-kubectl apply -n llm-inference-forge -f k8s/model/configmap.yaml
-kubectl apply -n llm-inference-forge -f k8s/model/deployment.yaml
-kubectl apply -n llm-inference-forge -f k8s/model/service.yaml
-kubectl apply -n llm-inference-forge -f k8s/gateway/deployment.yaml
-kubectl apply -n llm-inference-forge -f k8s/gateway/service.yaml
-kubectl apply -n llm-inference-forge -f k8s/gateway/hpa.yaml
+helm install llm-chat ./chart -f chart/values-gpu.yaml
+helm install llm-chat ./chart -f chart/values-local.yaml
 ```
+
+### Option B: Raw manifests
+
+```bash
+kubectl create namespace llm-chat
+kubectl apply -n llm-chat -f k8s/model/configmap.yaml
+kubectl apply -n llm-chat -f k8s/model/deployment.yaml
+kubectl apply -n llm-chat -f k8s/model/service.yaml
+kubectl apply -n llm-chat -f k8s/gateway/deployment.yaml
+kubectl apply -n llm-chat -f k8s/gateway/service.yaml
+kubectl apply -n llm-chat -f k8s/gateway/hpa.yaml
+```
+
+---
+
+## How it works
+
+```
+Client                  Gateway (FastAPI)                  Model Backend
+──────────────          ────────────────────────────         ───────────────
+  │                                         │                    │
+  ├─ POST /v1/chat/completions ───────────► │                    │
+  │                                         ├─ Rate limiter     │
+  │                                         │   (60 req/min/IP) │
+  │                                         ├─ Request queue    │
+  │                                         │   (asyncio.Semaphore) │
+  │                                         └────────────────────┤
+  │                                                         ▼
+  │                                            Model processes
+  │                                            (Ollama or vLLM)
+  │                                                         │
+  │                                           Response in
+  │                                           OpenAI format
+  │                                                         │
+  │◄── Streaming or non-streaming JSON response ────────────│
+```
+
+### Why two services?
+
+The **gateway** is stateless, horizontally scalable, and CPU-cheap. The **model backend** holds model weights in GPU memory — expensive to scale, slow to start. Decoupling them lets you add gateway replicas for traffic spikes without touching the GPU.
+
+### One-flag switch: local → GPU
+
+The entire difference between running on your laptop and running on a T4 is two YAML files. No code changes, no branches.
+
+```bash
+# Local — CPU, free, runs in Docker
+helm install llm-chat ./chart -f chart/values.yaml
+
+# AWS EKS — NVIDIA T4 spot (~$0.15/hr)
+helm install llm-chat ./chart -f chart/values-gpu.yaml
+```
+
+| Setting | Local | GPU (EKS) |
+|---------|-------|-----------|
+| model.backend | ollama | vllm |
+| model.name | gemma3:1b | mistralai/Mistral-7B-Instruct-v0.2 |
+| model.backendPort | 11434 | 8000 |
+| gpu.enabled | false | true |
+| gateway.replicas | 1 | 2 |
+| autoscaling.enabled | false | true |
 
 ---
 
 ## Kubernetes GPU scheduling
 
-Three things must be in place for a pod to land on a GPU node:
+Three things must be true for a pod to land on a GPU node:
 
-```yaml
-# 1. Tolerate the GPU taint — prevents CPU workloads from landing on GPU nodes
-tolerations:
-  - key: nvidia.com/gpu
-    operator: Exists
-    effect: NoSchedule
-
-# 2. Pin to GPU node type
-nodeSelector:
-  node.kubernetes.io/instance-type: g4dn.xlarge
-
-# 3. Request the GPU — K8s finds a free slot and exclusively assigns it
-resources:
-  limits:
-    nvidia.com/gpu: "1"
-```
-
-The NVIDIA Device Plugin DaemonSet (deployed via `make nvidia-plugin`) runs on every GPU node and registers `nvidia.com/gpu` as a schedulable resource. Without it, Kubernetes doesn't know GPUs exist.
+1. NVIDIA Device Plugin DaemonSet — runs on every GPU node, registers nvidia.com/gpu as a schedulable resource.
+2. Taint + Toleration — GPU nodes are tainted nvidia.com/gpu=true:NoSchedule.
+3. Resource request — the model container requests nvidia.com/gpu: 1.
 
 ---
 
 ## Autoscaling
 
-The HPA scales the **gateway**, not the model backend (GPU cold start is too slow for reactive scaling).
+The HPA scales the **gateway**, not the model backend (GPU cold start is too slow for reactive scaling). Two metrics drive scaling simultaneously:
 
-Two metrics drive scaling simultaneously:
-- **CPU utilisation** — standard K8s metric
-- **`llm-inference-forge_queue_depth`** — custom Prometheus metric via prometheus-adapter
+- CPU utilisation — triggers when gateways are compute-bound
+- llm_chat_queue_depth — custom Prometheus metric via prometheus-adapter
 
-Scaling on queue depth fires earlier and more predictably than CPU alone. A slow model fills the queue before it stresses the gateway's CPU.
+Queue-depth scaling fires earlier and more predictably than CPU alone. A slow model will fill the queue before it stresses the gateway's CPU.
 
-The model backend uses Karpenter: when a GPU pod can't be scheduled (no node exists), Karpenter provisions one. Slower than HPA (~2–3 min), but GPU nodes are expensive — you only want them when actually needed.
-
----
-
-## Prometheus metrics
-
-| Metric | Type | Description |
-|--------|------|-------------|
-| `llm-inference-forge_requests_total` | Counter | Request count by model and status |
-| `llm-inference-forge_request_duration_seconds` | Histogram | Latency p50/p95/p99 |
-| `llm-inference-forge_queue_depth` | Gauge | Waiting requests — also drives the HPA |
-| `llm-inference-forge_tokens_total` | Counter | Tokens generated (throughput + cost estimation) |
-| `llm-inference-forge_active_requests` | Gauge | Concurrent in-flight requests |
-| `llm-inference-forge_backend_errors_total` | Counter | Backend failures by error type |
-
-Latency buckets are non-uniform (0.1s → 60s) because LLM inference is slow and unpredictable. A 5s bucket tells you more than a 1s bucket for this workload.
-
-Import `k8s/monitoring/grafana-dashboard.json` to get the full 12-panel dashboard.
+The model backend uses Karpenter to watch for unschedulable pods, provision a new node, and land the pod within 2-3 minutes. GPU nodes cost money — you only want them when needed.
 
 ---
 
-## Project structure
+## Monitoring
+
+Prometheus scrapes the gateway at :9090/metrics. Key metrics:
+
+| Metric | Type | Purpose |
+|--------|------|---------|
+| llm_chat_requests_total | Counter | Request rate and error rate |
+| llm_chat_request_duration_seconds | Histogram | Latency SLOs p50/p95/p99 |
+| llm_chat_queue_depth | Gauge | HPA trigger + capacity planning |
+| llm_chat_tokens_total | Counter | Throughput and cost estimation |
+| llm_chat_active_requests | Gauge | Concurrency — saturated early |
+| llm_chat_backend_errors_total | Counter | Backend health by error type |
+
+Grafana dashboard: k8s/monitoring/grafana-dashboard.json (12 panels).
+
+---
+
+## Repository layout
 
 ```
-llm-inference-forge/
+.
+├── README.md
+├── ARCHITECTURE.md
+├── LICENSE
+├── requirements.txt
+├── Makefile
+├── .gitignore
+│
 ├── gateway/
-│   ├── main.py          # FastAPI app — queue, rate limiter, OpenAI adapter
-│   ├── queue.py         # asyncio.Semaphore-based request queue
-│   ├── metrics.py       # Prometheus metric definitions
-│   ├── config.py        # Settings (pydantic-settings)
-│   └── Dockerfile
-├── chart/               # Helm chart
+│   ├── main.py           Routes, queue, rate limiter, adapters
+│   ├── config.py         pydantic-settings configuration
+│   ├── metrics.py        Prometheus metrics
+│   ├── queue.py          Async request queue
+│   └── Dockerfile        Container image build
+│
+├── chart/                 Helm chart
 │   ├── Chart.yaml
 │   ├── values.yaml
-│   ├── values-local.yaml
-│   ├── values-gpu.yaml
-│   └── templates/
+│   ├── values-local.yaml # CPU-only local configuration
+│   ├── values-gpu.yaml   # AWS EKS GPU configuration
+│   └── templates/        Helm templates
 │       ├── configmap.yaml
-│       ├── gateway/     # deployment, service, hpa
-│       └── model/       # deployment, service
-├── k8s/                 # Raw Kubernetes manifests
-│   ├── gateway/
-│   ├── model/
-│   ├── monitoring/      # Prometheus ServiceMonitor + Grafana dashboard
+│       ├── gateway/      deployment, service, HPA
+│       └── model/        deployment, service
+│
+├── k8s/                   Raw Kubernetes manifests
+│   ├── gateway/           deployment.yaml, service.yaml, hpa.yaml
+│   ├── model/             configmap.yaml, deployment.yaml, service.yaml
+│   ├── monitoring/        ServiceMonitor + Grafana dashboard JSON
 │   └── nvidia-device-plugin.yaml
-├── infra/               # Terraform — EKS + GPU node group + Karpenter
+│
+├── infra/                 Terraform
 │   ├── main.tf
 │   └── variables.tf
-├── requirements.txt
-└── ARCHITECTURE.md
+│
+└── tests/                 Test suite (empty contributors welcome)
 ```
 
 ---
 
-## See also
+## Prerequisites
 
-[ARCHITECTURE.md](ARCHITECTURE.md) — detailed design rationale: why the gateway and model backend are separate, how request flow works, autoscaling strategy, and the metrics design.
+- Docker (for local runs)
+- Kubernetes 1.24+ (for deployment)
+- Helm 3.0+ (for Helm-based deployment)
+- Terraform 1.5+ (for cloud infrastructure)
+- NVIDIA GPU + Device Plugin (for GPU deployment)
+
+---
+
+## Getting started
+
+### Local development
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn gateway.main:app --reload
+```
+
+### Kubernetes (Helm)
+
+```bash
+helm install llm-chat ./chart
+```
+
+### Kubernetes (raw manifests)
+
+```bash
+kubectl apply -f k8s/model/configmap.yaml
+kubectl apply -f k8s/model/deployment.yaml
+kubectl apply -f k8s/model/service.yaml
+kubectl apply -f k8s/gateway/deployment.yaml
+kubectl apply -f k8s/gateway/service.yaml
+```
+
+### Terraform / cloud
+
+```bash
+terraform init
+terraform plan -var="region=us-east-1"
+terraform apply
+```
+
+---
 
 ## License
 
-MIT © 2026 [Your GitHub Organization] — [Your Name / Team Name]
-
-
-
-```
-                         ┌──────────────────────────────────┐
- Client (OpenAI SDK)  ──► │      Gateway (FastAPI)          │
-                          │                                  │
-                          │  ┌──────────────────────────┐   │
-                          │  │  Rate limiter            │   │
-                          │  │  60 req/min per IP       │   │
-                          │  └─────────────┬────────────┘   │
-                          │                │                 │
-                          │  ┌─────────────▼────────────┐   │
-                          │  │  Request queue           │   │
-                          │  │  asyncio.Semaphore       │   │
-                          │  └─────────────┬────────────┘   │
-                          │                │                 │
-                          │  ┌─────────────▼────────────┐   │
-                          │  │  Prometheus metrics      │   │
-                          │  │  /metrics endpoint       │   │
-                          │  └──────────────────────────┘   │
-                          └────────────────┬─────────────────┘
-                                           │
-                          ┌────────────────▼─────────────────┐
-                          │       Model Backend               │
-                          │                                   │
-                          │  Local:  Ollama (CPU)             │
-                          │  AWS:    vLLM (NVIDIA T4)         │
-                          └───────────────────────────────────┘
-                                           │
-                          ┌────────────────▼─────────────────┐
-                          │   Prometheus → Grafana            │
-                          │   12 panels: latency, throughput, │
-                          │   queue depth, GPU utilisation    │
-                          └───────────────────────────────────┘
-```
+MIT © 2026 — Hassnain2003
 
 ---
 
-## One-flag switch: local → GPU
+## Contributing
 
-The entire difference between running on a MacBook and running on a T4 GPU is two values files:
+Contributions welcome! This is a fresh project and there is plenty of room for improvement:
 
-```bash
-# Local — CPU, free, runs in Docker
-helm install llm-inference-forge ./chart -f chart/values-local.yaml
+- Add integration tests (tests/)
+- Add OpenAPI/Swagger docs
+- Add CI/CD pipeline
+- Add more model adapters (LM Studio, TGI, etc.)
+- Improve Grafana dashboard panels
+- Add e2e deployment scripts
 
-# AWS EKS — NVIDIA T4 spot (~$0.15/hr)
-helm install llm-inference-forge ./chart -f chart/values-gpu.yaml
-```
-
-| Setting | Local | GPU (EKS) |
-|---------|-------|-----------|
-| `model.backend` | ollama | vllm |
-| `model.name` | gemma3:1b | mistralai/Mistral-7B |
-| `gpu.enabled` | false | true |
-| `gateway.replicas` | 1 | 2 |
-| `autoscaling.enabled` | false | true |
-
-Same gateway image. Same manifests. Same Prometheus config.
+Please open an issue or submit a pull request.
