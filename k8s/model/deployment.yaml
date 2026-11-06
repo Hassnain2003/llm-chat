@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: inferenceforge-model
+  name: llm-chat-model
   labels:
-    app: inferenceforge-model
+    app: llm-chat-model
     component: model-backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: inferenceforge-model
+      app: llm-chat-model
   template:
     metadata:
       labels:
-        app: inferenceforge-model
+        app: llm-chat-model
         component: model-backend
     spec:
       # ── GPU scheduling ────────────────────────────────────────────────────

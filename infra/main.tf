@@ -18,8 +18,8 @@ provider "aws" {
 provider "helm" {}
 
 locals {
-  cluster_name = "inferenceforge-${var.environment}"
-  common_tags  = { Project = "inferenceforge", Environment = var.environment, ManagedBy = "terraform" }
+  cluster_name = "llm-chat-${var.environment}"
+  common_tags  = { Project = "llm-chat", Environment = var.environment, ManagedBy = "terraform" }
 }
 
 # ── VPC ───────────────────────────────────────────────────────────────────────
