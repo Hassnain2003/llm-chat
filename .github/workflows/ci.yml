@@ -8,8 +8,8 @@ jobs:
   python:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
@@ -19,18 +19,22 @@ jobs:
   manifests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
+      - uses: actions/checkout@v4.2.2
+      - uses: azure/setup-helm@v4.3.0
+        with:
+          version: 3.16.4
       - run: helm lint ./chart -f chart/values-local.yaml
       - run: helm template llm-chat ./chart -f chart/values-local.yaml > /tmp/helm.yaml
-      - run: docker run --rm -i ghcr.io/yannh/kubeconform:latest -strict -ignore-missing-schemas -summary < /tmp/helm.yaml
-      - run: find k8s -type f \( -name '*.yaml' -o -name '*.yml' \) -printf '/work/%p\0' | xargs -0 docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:latest -strict -ignore-missing-schemas -summary
+      - run: docker run --rm -i ghcr.io/yannh/kubeconform:v0.7.0 -strict -ignore-missing-schemas -summary < /tmp/helm.yaml
+      - run: find k8s -type f \( -name '*.yaml' -o -name '*.yml' \) -printf '/work/%p\0' | xargs -0 docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:v0.7.0 -strict -ignore-missing-schemas -summary
 
   terraform:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v4.2.2
+      - uses: hashicorp/setup-terraform@v3.1.2
+        with:
+          terraform_version: 1.9.8
       - run: terraform -chdir=infra fmt -check
       - run: terraform -chdir=infra init -backend=false
       - run: terraform -chdir=infra validate
@@ -38,8 +42,8 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/build-push-action@v6
+      - uses: actions/checkout@v4.2.2
+      - uses: docker/build-push-action@v6.18.0
         with:
           context: .
           file: gateway/Dockerfile
