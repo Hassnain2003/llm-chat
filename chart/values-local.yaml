@@ -17,6 +17,7 @@ gateway:
   port: 8080
   rateLimit: 60         # requests per minute per client
   queueDepth: 20
+  requestTimeout: 120
 
 autoscaling:
   enabled: false        # no HPA locally
