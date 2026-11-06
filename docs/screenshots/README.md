@@ -12,3 +12,12 @@ After running `make loadtest-capacity`, open Grafana at `http://localhost:3000` 
 
 Save the images in this directory with the UTC date and scenario in each filename. Do not add
 unmeasured screenshots or screenshots from a different model/configuration.
+
+## Captured examples
+
+These screenshots were captured from the local Compose stack after sending real gateway traffic:
+
+- [Grafana dashboard](./grafana-dashboard-populated.png): populated request, latency, queue,
+  and token panels.
+- [Swagger API](./swagger-api.png): the generated FastAPI API documentation and available
+  health, readiness, metrics, queue, and chat-completion endpoints.
