@@ -2,7 +2,7 @@
 
 An OpenAI-compatible FastAPI gateway that puts bounded concurrency, rate limiting, metrics, and request cancellation in front of Ollama or vLLM.
 
-[![CI](https://github.com/Hassnain2003/llm-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/Hassnain2003/llm-chat/actions/workflows/ci.yml)
+[![CI](https://github.com/Hassnain2003/openai-llm-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/Hassnain2003/openai-llm-gateway/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -11,8 +11,8 @@ An OpenAI-compatible FastAPI gateway that puts bounded concurrency, rate limitin
 Requirements: Python 3.11+, Docker Compose, and an Ollama model if you run the local backend yourself.
 
 ```bash
-git clone https://github.com/Hassnain2003/llm-chat.git
-cd llm-chat
+git clone https://github.com/Hassnain2003/openai-llm-gateway.git
+cd openai-llm-gateway
 pip install -r requirements.txt
 make test
 ```
