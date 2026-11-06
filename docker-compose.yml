@@ -1,0 +1,48 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    environment:
+      MODEL_BACKEND_URL: http://ollama:11434
+      MODEL_NAME: ${MODEL_NAME:-tinyllama}
+      BACKEND_TYPE: ollama
+      RATE_LIMIT_PER_MINUTE: 60
+      QUEUE_MAX_DEPTH: 100
+    ports:
+      - "8080:8080"
+    depends_on:
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama:0.5.7
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - gateway
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/inferenceforge.json
+    volumes:
+      - ./k8s/monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/inferenceforge.json:ro
+      - ./monitoring/grafana-provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  ollama:

@@ -1,6 +1,6 @@
 # InferenceForge Helm Values
-# Local CPU:  helm install inferenceforge . -f values.yaml
-# AWS GPU:    helm install inferenceforge . -f values.yaml -f values-gpu.yaml
+# Local CPU:  helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
+# AWS GPU:    helm upgrade --install llm-chat ./chart -f chart/values.yaml -f chart/values-gpu.yaml
 
 model:
   backend: ollama           # ollama | vllm

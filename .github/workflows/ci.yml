@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: ruff check gateway tests
+      - run: pytest --cov=gateway --cov-fail-under=80
+
+  manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: helm lint ./chart -f chart/values-local.yaml
+      - run: helm template llm-chat ./chart -f chart/values-local.yaml > /tmp/helm.yaml
+      - run: docker run --rm -i zegl/kubeconform:latest -strict -ignore-missing-schemas -summary < /tmp/helm.yaml
+      - run: docker run --rm -v "$PWD:/work" zegl/kubeconform:latest -strict -ignore-missing-schemas -summary /work/k8s
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: terraform -chdir=infra fmt -check
+      - run: terraform -chdir=infra init -backend=false
+      - run: terraform -chdir=infra validate
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: gateway/Dockerfile
+          push: false
+          tags: llm-chat-gateway:ci
