@@ -36,7 +36,7 @@ module "vpc" {
   public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
 
   enable_nat_gateway = true
-  single_nat_gateway = true # cost optimisation
+  single_nat_gateway = true
 
   public_subnet_tags = { "kubernetes.io/role/elb" = 1 }
   private_subnet_tags = {
@@ -82,16 +82,15 @@ resource "aws_eks_node_group" "gpu" {
   node_role_arn   = module.eks.eks_managed_node_groups["system"].iam_role_arn
   subnet_ids      = module.vpc.private_subnets
 
-  # g4dn.xlarge: 1x NVIDIA T4, 4 vCPUs, 16 GB RAM — best price/perf for inference
+  # The default GPU node type can be overridden through gpu_instance_type.
   instance_types = [var.gpu_instance_type]
 
   scaling_config {
-    desired_size = 0 # scale to 0 when idle = $0 cost
+    desired_size = 0
     min_size     = 0
     max_size     = var.gpu_max_nodes
   }
 
-  # Spot instances = ~70% cheaper than on-demand
   capacity_type = var.use_spot ? "SPOT" : "ON_DEMAND"
 
   # Taint GPU nodes so only GPU-requesting pods schedule here
