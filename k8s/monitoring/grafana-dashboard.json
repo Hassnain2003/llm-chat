@@ -344,6 +344,11 @@
           "datasource": "${DS_PROMETHEUS}",
           "expr": "rate(llm_chat_request_duration_seconds_sum[2m]) / rate(llm_chat_request_duration_seconds_count[2m])",
           "legendFormat": "average"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "expr": "rate(llm_chat_time_to_first_chunk_seconds_sum[2m]) / rate(llm_chat_time_to_first_chunk_seconds_count[2m])",
+          "legendFormat": "average time to first chunk"
         }
       ]
     },
@@ -417,7 +422,7 @@
     {
       "id": 21,
       "type": "timeseries",
-      "title": "Token Usage",
+      "title": "Backend token and stream chunk activity",
       "gridPos": {
         "x": 8,
         "y": 15,
@@ -439,6 +444,11 @@
           "datasource": "${DS_PROMETHEUS}",
           "expr": "rate(llm_chat_tokens_total[1m])",
           "legendFormat": "backend-reported tokens \u2014 {{model}}"
+        },
+        {
+          "datasource": "${DS_PROMETHEUS}",
+          "expr": "llm_chat_stream_chunks_per_second",
+          "legendFormat": "stream chunks/s \u2014 {{model}}"
         }
       ]
     },
