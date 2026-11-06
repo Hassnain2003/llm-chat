@@ -26,7 +26,6 @@ __pycache__/
 *.yaml.runner
 
 # Docker
-*.dockerignore
 docker-compose.override.yml
 
 # Monitoring

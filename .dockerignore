@@ -1,0 +1,13 @@
+.git
+.github
+.pytest_cache
+.ruff_cache
+.coverage
+.venv
+__pycache__
+**/__pycache__
+infra/.terraform
+infra/.terraform.lock.hcl
+docs
+loadtest
+tests
