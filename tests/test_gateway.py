@@ -1,12 +1,16 @@
 import asyncio
 import json
 import logging
+import re
+from pathlib import Path
 
 import httpx
 import pytest
 import pytest_asyncio
 
 from gateway import main
+from gateway.config import Settings
+from gateway.metrics import METRIC_NAMES
 from gateway.queue import RequestQueue
 from gateway.rate_limit import RateLimiter
 
@@ -41,6 +45,50 @@ def test_token_bucket_and_api_key_isolation():
     assert limiter.check("10.0.0.1", api_key="key-b")[0]
 
 
+def test_rate_limiter_evicts_idle_buckets():
+    now = [0.0]
+    limiter = RateLimiter(10, bucket_ttl=600, clock=lambda: now[0])
+    limiter.check("old")
+    now[0] = 601
+    limiter.check("new")
+    assert "ip:old" not in limiter._buckets
+    assert "ip:new" in limiter._buckets
+
+
+def test_rate_limiter_cap_evicts_oldest_idle_bucket():
+    now = [0.0]
+    limiter = RateLimiter(10, max_buckets=2, bucket_ttl=10_000, clock=lambda: now[0])
+    limiter.check("first")
+    now[0] = 1
+    limiter.check("second")
+    now[0] = 2
+    limiter.check("third")
+    assert len(limiter._buckets) == 2
+    assert "ip:first" not in limiter._buckets
+
+
+def test_rate_limiter_does_not_evict_recent_bucket_at_capacity():
+    now = [0.0]
+    limiter = RateLimiter(1, max_buckets=2, bucket_ttl=10_000, clock=lambda: now[0])
+    limiter.check("active")
+    now[0] = 1
+    limiter.check("other")
+    now[0] = 2
+    limiter.check("active")
+    limiter.check("third")
+    assert "ip:active" in limiter._buckets
+    assert "ip:other" not in limiter._buckets
+
+
+def test_rate_limiter_works_after_idle_eviction():
+    now = [0.0]
+    limiter = RateLimiter(1, bucket_ttl=10, clock=lambda: now[0])
+    assert limiter.check("client")[0]
+    assert not limiter.check("client")[0]
+    now[0] = 11
+    assert limiter.check("client")[0]
+
+
 @pytest.mark.asyncio
 async def test_health_and_metrics(client):
     health = await client.get("/health")
@@ -48,7 +96,21 @@ async def test_health_and_metrics(client):
     assert health.status_code == 200
     assert health.json()["status"] == "ok"
     assert metrics.status_code == 200
-    assert b"inferenceforge_requests_total" in metrics.content
+    assert b"llm_chat_requests_total" in metrics.content
+
+
+def test_metrics_documentation_matches_metrics_endpoint():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    documented = set(re.findall(r"`(llm_chat_[a-z0-9_]+)`", readme))
+    assert documented == set(METRIC_NAMES)
+    exposition = main.metrics().body.decode()
+    for metric_name in METRIC_NAMES:
+        assert metric_name in exposition
+
+
+def test_invalid_api_keys_config_is_rejected():
+    with pytest.raises(ValueError):
+        Settings(api_keys='{"broken": "not-a-limit"}')
 
 
 @pytest.mark.asyncio
@@ -112,6 +174,33 @@ async def test_api_key_rate_limit_returns_retry_after(client, monkeypatch):
     limited = await client.post("/v1/chat/completions", headers={"X-API-Key": "secret"}, json=payload)
     assert limited.status_code == 429
     assert int(limited.headers["retry-after"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_unknown_api_key_uses_ip_fallback(client, monkeypatch):
+    class BackendClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, *args, **kwargs):
+            return httpx.Response(
+                200,
+                request=httpx.Request("POST", "http://backend"),
+                json={"message": {"content": "ok"}, "eval_count": 1},
+            )
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", BackendClient)
+    payload = {"messages": [{"role": "user", "content": "hi"}]}
+    first = await client.post("/v1/chat/completions", headers={"X-API-Key": "unknown"}, json=payload)
+    second = await client.post("/v1/chat/completions", headers={"X-API-Key": "unknown"}, json=payload)
+    assert first.status_code == 200
+    assert second.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -194,6 +283,7 @@ async def test_streaming_sse_and_vllm_adapter(client, monkeypatch):
 
         async def aiter_lines(self):
             yield json.dumps({"choices": [{"delta": {"content": "hello"}}]})
+            yield json.dumps({"choices": [{"delta": {"content": "world"}}]})
             yield json.dumps({"choices": [{"delta": {"content": " world"}}]})
 
     def stream(*args, **kwargs):
@@ -206,6 +296,100 @@ async def test_streaming_sse_and_vllm_adapter(client, monkeypatch):
     )
     assert response.status_code == 200
     assert "data: [DONE]" in response.text
+    assert main._queue.depth == 0
+
+
+@pytest.mark.asyncio
+async def test_stream_disconnect_releases_queue_slot(monkeypatch):
+    class Request:
+        calls = 0
+
+        async def is_disconnected(self):
+            self.calls += 1
+            return self.calls > 1
+
+    class StreamResponse:
+        def raise_for_status(self):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def aiter_lines(self):
+            yield json.dumps({"choices": [{"delta": {"content": "hello"}}]})
+            yield json.dumps({"choices": [{"delta": {"content": "world"}}]})
+
+    class BackendClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        def stream(self, *args, **kwargs):
+            return StreamResponse()
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", BackendClient)
+    main._queue.try_acquire()
+    output = [item async for item in main._stream_response(
+        main.ChatRequest(messages=[main.Message(role="user", content="hi")]),
+        Request(),
+        "tinyllama",
+        0,
+    )]
+    assert output == ["data: " + json.dumps({"choices": [{"delta": {"content": "hello"}}]}) + "\n\n"]
+    assert main._queue.depth == 0
+
+
+@pytest.mark.asyncio
+async def test_stream_backend_error_releases_queue_slot(monkeypatch):
+    class Request:
+        async def is_disconnected(self):
+            return False
+
+    class StreamResponse:
+        def raise_for_status(self):
+            request = httpx.Request("POST", "http://backend")
+            response = httpx.Response(502, request=request)
+            raise httpx.HTTPStatusError("backend failed", request=request, response=response)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def aiter_lines(self):
+            yield "never reached"
+
+    class BackendClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        def stream(self, *args, **kwargs):
+            return StreamResponse()
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", BackendClient)
+    main._queue.try_acquire()
+    output = [item async for item in main._stream_response(
+        main.ChatRequest(messages=[main.Message(role="user", content="hi")]),
+        Request(),
+        "tinyllama",
+        0,
+    )]
+    assert output == []
     assert main._queue.depth == 0
 
 

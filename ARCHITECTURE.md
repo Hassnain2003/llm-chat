@@ -8,13 +8,13 @@
 
 ## Design decisions
 
-### Why a semaphore/queue?
+### Why a bounded queue?
 
 Model inference is an expensive, finite resource. The gateway reserves one process-local slot before calling the backend and releases it in a `finally` path, including cancellation and timeout. Returning `503` when capacity is full is explicit backpressure rather than unbounded memory growth.
 
 ### Why HPA can scale on queue depth
 
-CPU utilization alone can miss a saturated model backend: the gateway may be mostly waiting on I/O while requests accumulate. The Kubernetes HPA includes the exported `inferenceforge_queue_depth` metric as a signal, provided a Prometheus adapter is installed and configured for that custom metric.
+CPU utilization alone can miss a saturated model backend: the gateway may be mostly waiting on I/O while requests accumulate. The Kubernetes HPA includes the exported `llm_chat_queue_depth` metric as a signal, provided a Prometheus adapter is installed and configured for that custom metric.
 
 ### Why gateway and model are separate services?
 
@@ -22,7 +22,7 @@ The gateway is stateless with respect to model weights and can be updated or rep
 
 ### Why token buckets?
 
-Token buckets allow a configured burst up to the bucket capacity while refilling at a predictable requests-per-minute rate. API-key buckets are isolated from one another; requests without a configured key use an IP bucket.
+Token buckets allow a configured burst up to the bucket capacity while refilling at a predictable requests-per-minute rate. API-key buckets are isolated from one another; requests without a configured key use an IP bucket. Idle buckets are removed after 10 minutes by default, and the limiter caps the number of buckets at 10,000; both limits are configurable. These limits are per gateway replica, not shared across replicas.
 
 ## Known limitations
 

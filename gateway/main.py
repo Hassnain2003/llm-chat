@@ -24,8 +24,8 @@ from gateway.metrics import (
     cancelled_requests,
     request_count,
     request_latency,
-    stream_tokens_per_second,
-    time_to_first_token,
+    stream_chunks_per_second,
+    time_to_first_chunk,
     tokens_generated,
 )
 from gateway.queue import RequestQueue
@@ -60,7 +60,12 @@ if not logger.handlers:
 async def lifespan(app: FastAPI):
     global _queue, _rate_limiter
     _queue = RequestQueue(max_depth=settings.queue_max_depth)
-    _rate_limiter = RateLimiter(settings.rate_limit_per_minute, settings.api_key_limits)
+    _rate_limiter = RateLimiter(
+        settings.rate_limit_per_minute,
+        settings.api_key_limits,
+        bucket_ttl=settings.rate_limit_bucket_ttl_seconds,
+        max_buckets=settings.rate_limit_max_buckets,
+    )
     yield
 
 
@@ -283,7 +288,8 @@ async def _non_stream_response(
 async def _stream_response(
     req: ChatRequest, request: Request, model_name: str, started_at: float
 ) -> AsyncIterator[str]:
-    token_count = 0
+    chunk_count = 0
+    backend_token_count: int | None = None
     first_token_at: float | None = None
     status = "success"
     try:
@@ -302,8 +308,17 @@ async def _stream_response(
                     now = time.perf_counter()
                     if first_token_at is None:
                         first_token_at = now
-                        time_to_first_token.labels(model=model_name).observe(now - started_at)
-                    token_count += 1
+                        time_to_first_chunk.labels(model=model_name).observe(now - started_at)
+                    chunk_count += 1
+                    try:
+                        chunk_data = json.loads(line.removeprefix("data: ").strip())
+                    except json.JSONDecodeError:
+                        chunk_data = {}
+                    usage = chunk_data.get("usage", {})
+                    if isinstance(usage, dict) and isinstance(usage.get("completion_tokens"), int):
+                        backend_token_count = usage["completion_tokens"]
+                    if isinstance(chunk_data.get("eval_count"), int):
+                        backend_token_count = chunk_data["eval_count"]
                     yield f"data: {line}\n\n"
     except asyncio.CancelledError:
         _record_cancel("cancelled", model_name)
@@ -321,9 +336,10 @@ async def _stream_response(
     finally:
         elapsed = time.perf_counter() - started_at
         request_latency.labels(model=model_name).observe(elapsed)
-        if token_count:
-            tokens_generated.labels(model=model_name).inc(token_count)
-            stream_tokens_per_second.labels(model=model_name).set(token_count / max(elapsed, 0.001))
+        if backend_token_count is not None:
+            tokens_generated.labels(model=model_name).inc(backend_token_count)
+        if chunk_count:
+            stream_chunks_per_second.labels(model=model_name).set(chunk_count / max(elapsed, 0.001))
         if status == "success":
             request_count.labels(status=status, model=model_name).inc()
         active_requests.dec()

@@ -4,14 +4,14 @@
 
 model:
   backend: ollama
-  name: gemma3:1b      # change to llama3.2 or any model you have pulled
+  name: tinyllama
   backendPort: 11434
 
 gpu:
   enabled: false        # CPU only locally
 
 gateway:
-  image: inferenceforge-gateway
+  image: llm-chat-gateway
   tag: latest
   replicas: 1           # single replica locally
   port: 8080
