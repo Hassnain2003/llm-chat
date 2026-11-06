@@ -138,7 +138,3 @@ Model: `TODO - record exact model name and quantization`.
 - Add integration tests that run against disposable Ollama and vLLM-compatible backends.
 - Add a documented production ingress/authentication example.
 - Fill the benchmark table and add Grafana screenshots from measured runs.
-
-## Acknowledgments
-
-This project was inspired by [lmenta/inferenceforge](https://github.com/lmenta/inferenceforge). The upstream repository did not expose a license in its repository metadata or contain a `LICENSE` file when checked; this project therefore keeps the inspiration attribution but does not copy an upstream license notice. This repository is independently licensed under the MIT License; see [LICENSE](LICENSE).
