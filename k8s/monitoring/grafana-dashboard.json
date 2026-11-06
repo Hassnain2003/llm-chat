@@ -161,7 +161,7 @@
       "targets": [
         {
           "datasource": "${DS_PROMETHEUS}",
-          "expr": "rate(llm_chat_requests_total{status='error'}[5m]) / rate(llm_chat_requests_total[5m])",
+          "expr": "rate(llm_chat_requests_total{status=\"error\"}[5m]) / rate(llm_chat_requests_total[5m])",
           "legendFormat": "error %"
         }
       ]

@@ -123,7 +123,14 @@ helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
 
 ## Benchmarks
 
-No benchmark numbers are committed. Run `make loadtest` only when the gateway and model are available; it runs the 10-, 50-, and 100-concurrent-user scenarios using k6 when installed or a standard-library Python fallback, and writes the measured output to `docs/results.md`.
+The benchmark harness is split into three commands:
+
+- `make loadtest-limiter`: limiter verification, not a performance benchmark.
+- `make loadtest-capacity`: CPU-only capacity stages at 1, 2, 4, 8, and 16 virtual users.
+- `make loadtest-overload`: queue overload verification with a queue depth of 4.
+- `make loadtest`: runs all three commands in order and writes separate sections to [docs/results.md](docs/results.md).
+
+Capacity uses fixed prompts, `max_tokens: 64`, a 15-second warm-up request, and a raised rate limit. Latency and token-rate columns include only 2xx responses. Capacity numbers describe gateway behavior around a CPU-only 1.1B model on the recorded hardware; they are not a claim about model speed.
 
 ### Metrics exposed
 
@@ -141,15 +148,7 @@ The following metric families are emitted by the gateway and are checked by the 
 
 `llm_chat_tokens_total` uses `eval_count` from Ollama responses or `usage.completion_tokens` from vLLM responses when the backend supplies them. The streaming chunks/sec metric counts SSE chunks, not model tokens.
 
-| Concurrent users | Throughput | Latency | Error rate |
-|---:|---:|---:|---:|
-| 10 | TODO - run `make loadtest` | TODO - run `make loadtest` | TODO - run `make loadtest` |
-| 50 | TODO - run `make loadtest` | TODO - run `make loadtest` | TODO - run `make loadtest` |
-| 100 | TODO - run `make loadtest` | TODO - run `make loadtest` | TODO - run `make loadtest` |
-
-Hardware: `TODO - record CPU/GPU, RAM, and storage`.
-
-Model: `TODO - record exact model name and quantization`.
+See the measured tables and status breakdowns in [docs/results.md](docs/results.md). Every result section records its hardware, model, UTC date, git commit, and exact Make command.
 
 ## Limitations
 

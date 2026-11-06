@@ -1,4 +1,4 @@
-.PHONY: dev test lint loadtest kind-up kind-deploy kind-down helm-lint terraform-validate
+.PHONY: dev test lint loadtest loadtest-limiter loadtest-capacity loadtest-overload kind-up kind-deploy kind-down helm-lint terraform-validate
 
 IMAGE ?= llm-chat-gateway:local
 NAMESPACE ?= llm-chat
@@ -13,7 +13,18 @@ lint:
 	python3 -m ruff check gateway tests
 
 loadtest:
-	./scripts/run-loadtest.sh
+	$(MAKE) loadtest-limiter
+	$(MAKE) loadtest-capacity
+	$(MAKE) loadtest-overload
+
+loadtest-limiter:
+	./scripts/run-loadtest-target.sh limiter
+
+loadtest-capacity:
+	./scripts/run-loadtest-target.sh capacity
+
+loadtest-overload:
+	./scripts/run-loadtest-target.sh overload
 
 kind-up:
 	kind get clusters | grep -qx llm-chat || kind create cluster --name llm-chat
