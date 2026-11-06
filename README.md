@@ -57,7 +57,7 @@ The gateway is at `http://localhost:8080`, Prometheus at `http://localhost:9090`
 `API_KEYS` is a JSON object mapping keys to requests per minute:
 
 ```bash
-API_KEYS='{"reviewer-key":30,"service-key":120}' \
+API_KEYS='{"reviewer-key":30,"service-key":60}' \
   uvicorn gateway.main:app --host 0.0.0.0 --port 8080
 ```
 
