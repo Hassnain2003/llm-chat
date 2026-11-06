@@ -2,18 +2,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: inferenceforge-model
+  name: llm-chat-model
   labels:
-    app: inferenceforge-model
+    app: llm-chat-model
 spec:
   replicas: {{ .Values.model.replicas }}
   selector:
     matchLabels:
-      app: inferenceforge-model
+      app: llm-chat-model
   template:
     metadata:
       labels:
-        app: inferenceforge-model
+        app: llm-chat-model
     spec:
       {{- if .Values.gpu.enabled }}
       tolerations:
@@ -55,18 +55,18 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: inferenceforge-model
+  name: llm-chat-model
   labels:
-    app: inferenceforge-model
+    app: llm-chat-model
 spec:
   replicas: {{ .Values.model.replicas }}
   selector:
     matchLabels:
-      app: inferenceforge-model
+      app: llm-chat-model
   template:
     metadata:
       labels:
-        app: inferenceforge-model
+        app: llm-chat-model
     spec:
       tolerations:
         - key: nvidia.com/gpu

@@ -1,5 +1,5 @@
 # GPU overrides — apply on top of values.yaml for EKS GPU deployment
-# Usage: helm upgrade --install inferenceforge . -f values.yaml -f values-gpu.yaml
+# Usage: helm upgrade --install llm-chat . -f values.yaml -f values-gpu.yaml
 
 model:
   backend: vllm

@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: inferenceforge-gateway-hpa
+  name: llm-chat-gateway-hpa
   labels:
-    app.kubernetes.io/name: inferenceforge
+    app.kubernetes.io/name: llm-chat
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: inferenceforge-gateway
+    name: llm-chat-gateway
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
@@ -22,7 +22,7 @@ spec:
     - type: Pods
       pods:
         metric:
-          name: inferenceforge_queue_depth
+          name: llm_chat_queue_depth
         target:
           type: AverageValue
           averageValue: "{{ .Values.autoscaling.queueDepthThreshold }}"

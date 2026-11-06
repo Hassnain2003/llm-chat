@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: inferenceforge-gateway
+  name: llm-chat-gateway
   labels:
-    app: inferenceforge-gateway
+    app: llm-chat-gateway
 spec:
   replicas: {{ .Values.gateway.replicas }}
   selector:
     matchLabels:
-      app: inferenceforge-gateway
+      app: llm-chat-gateway
   template:
     metadata:
       labels:
-        app: inferenceforge-gateway
+        app: llm-chat-gateway
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ .Values.gateway.port }}"
@@ -28,17 +28,17 @@ spec:
             - name: MODEL_BACKEND_URL
               valueFrom:
                 configMapKeyRef:
-                  name: inferenceforge-config
+                  name: llm-chat-config
                   key: model_backend_url
             - name: MODEL_NAME
               valueFrom:
                 configMapKeyRef:
-                  name: inferenceforge-config
+                  name: llm-chat-config
                   key: model_name
             - name: BACKEND_TYPE
               valueFrom:
                 configMapKeyRef:
-                  name: inferenceforge-config
+                  name: llm-chat-config
                   key: backend_type
             - name: RATE_LIMIT_PER_MINUTE
               value: "{{ .Values.gateway.rateLimit }}"

@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: inferenceforge-config
+  name: llm-chat-config
   labels:
-    app.kubernetes.io/name: inferenceforge
+    app.kubernetes.io/name: llm-chat
 data:
-  model_backend_url: "http://inferenceforge-model:{{ .Values.model.backendPort }}"
+  model_backend_url: "http://llm-chat-model:{{ .Values.model.backendPort }}"
   model_name: "{{ .Values.model.name }}"
   backend_type: "{{ .Values.model.backend }}"

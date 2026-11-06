@@ -25,9 +25,9 @@ kind-deploy:
 	kubectl apply -n $(NAMESPACE) -f k8s/model/configmap.yaml
 	kubectl apply -n $(NAMESPACE) -f k8s/model/deployment.yaml
 	kubectl apply -n $(NAMESPACE) -f k8s/model/service.yaml
-	sed 's#inferenceforge-gateway:latest#$(IMAGE)#' k8s/gateway/deployment.yaml | kubectl apply -n $(NAMESPACE) -f -
+	sed 's#llm-chat-gateway:latest#$(IMAGE)#' k8s/gateway/deployment.yaml | kubectl apply -n $(NAMESPACE) -f -
 	kubectl apply -n $(NAMESPACE) -f k8s/gateway/service.yaml
-	kubectl rollout status deployment/inferenceforge-gateway -n $(NAMESPACE) --timeout=120s
+	kubectl rollout status deployment/llm-chat-gateway -n $(NAMESPACE) --timeout=120s
 
 kind-down:
 	kind delete cluster --name llm-chat
