@@ -4,12 +4,18 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 3.0"
+    }
   }
 }
 
 provider "aws" {
   region = var.region
 }
+
+provider "helm" {}
 
 locals {
   cluster_name = "inferenceforge-${var.environment}"
@@ -114,18 +120,20 @@ resource "helm_release" "karpenter" {
   version    = "0.37.0"
   namespace  = "karpenter"
 
-  set {
-    name  = "settings.clusterName"
-    value = module.eks.cluster_name
-  }
-  set {
-    name  = "settings.clusterEndpoint"
-    value = module.eks.cluster_endpoint
-  }
-  set {
-    name  = "serviceAccount.annotations.eks.amazonaws.com/role-arn"
-    value = aws_iam_role.karpenter.arn
-  }
+  set = [
+    {
+      name  = "settings.clusterName"
+      value = module.eks.cluster_name
+    },
+    {
+      name  = "settings.clusterEndpoint"
+      value = module.eks.cluster_endpoint
+    },
+    {
+      name  = "serviceAccount.annotations.eks.amazonaws.com/role-arn"
+      value = aws_iam_role.karpenter.arn
+    },
+  ]
 }
 
 resource "aws_iam_role" "karpenter" {

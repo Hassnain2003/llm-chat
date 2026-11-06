@@ -14,7 +14,7 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
       - run: ruff check gateway tests
-      - run: pytest --cov=gateway --cov-fail-under=80
+      - run: PYTHONPATH=. pytest --cov=gateway --cov-fail-under=80
 
   manifests:
     runs-on: ubuntu-latest
@@ -24,7 +24,7 @@ jobs:
       - run: helm lint ./chart -f chart/values-local.yaml
       - run: helm template llm-chat ./chart -f chart/values-local.yaml > /tmp/helm.yaml
       - run: docker run --rm -i ghcr.io/yannh/kubeconform:latest -strict -ignore-missing-schemas -summary < /tmp/helm.yaml
-      - run: docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:latest -strict -ignore-missing-schemas -summary /work/k8s
+      - run: find k8s -type f \( -name '*.yaml' -o -name '*.yml' \) -printf '/work/%p\0' | xargs -0 docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:latest -strict -ignore-missing-schemas -summary
 
   terraform:
     runs-on: ubuntu-latest
