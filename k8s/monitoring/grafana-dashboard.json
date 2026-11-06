@@ -161,7 +161,7 @@
       "targets": [
         {
           "datasource": "${DS_PROMETHEUS}",
-          "expr": "rate(llm_chat_requests_total{status=\"error\"}[5m]) / rate(llm_chat_requests_total[5m])",
+          "expr": "rate(llm_chat_requests_total{status=\"error\"}[5m]) / rate(llm_chat_requests_total[5m]) or vector(0)",
           "legendFormat": "error %"
         }
       ]
@@ -480,83 +480,6 @@
           "datasource": "${DS_PROMETHEUS}",
           "expr": "llm_chat_queue_depth",
           "legendFormat": "queue depth"
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "title": "GPU (EKS)",
-      "gridPos": {
-        "x": 0,
-        "y": 22,
-        "w": 24,
-        "h": 1
-      },
-      "id": 103
-    },
-    {
-      "id": 30,
-      "type": "timeseries",
-      "title": "GPU Utilisation % (requires DCGM exporter)",
-      "gridPos": {
-        "x": 0,
-        "y": 23,
-        "w": 12,
-        "h": 7
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "min": 0,
-          "max": 100,
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15
-          },
-          "color": {
-            "fixedColor": "#8AB8FF",
-            "mode": "fixed"
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "datasource": "${DS_PROMETHEUS}",
-          "expr": "DCGM_FI_DEV_GPU_UTIL",
-          "legendFormat": "GPU {{gpu}}"
-        }
-      ]
-    },
-    {
-      "id": 31,
-      "type": "timeseries",
-      "title": "GPU Memory Used (GB)",
-      "gridPos": {
-        "x": 12,
-        "y": 23,
-        "w": 12,
-        "h": 7
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "decgbytes",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15
-          },
-          "color": {
-            "fixedColor": "#B877D9",
-            "mode": "fixed"
-          }
-        },
-        "overrides": []
-      },
-      "targets": [
-        {
-          "datasource": "${DS_PROMETHEUS}",
-          "expr": "DCGM_FI_DEV_FB_USED / 1024",
-          "legendFormat": "GPU {{gpu}} mem"
         }
       ]
     }
