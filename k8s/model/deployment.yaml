@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llm-chat-model
+  name: openai-llm-gateway-model
   labels:
-    app: llm-chat-model
+    app: openai-llm-gateway-model
     component: model-backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: llm-chat-model
+      app: openai-llm-gateway-model
   template:
     metadata:
       labels:
-        app: llm-chat-model
+        app: openai-llm-gateway-model
         component: model-backend
     spec:
       # ── GPU scheduling ────────────────────────────────────────────────────

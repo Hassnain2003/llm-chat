@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llm-chat-mock
+  name: openai-llm-gateway-mock
   labels:
-    app: llm-chat-mock
+    app: openai-llm-gateway-mock
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: llm-chat-mock
+      app: openai-llm-gateway-mock
   template:
     metadata:
       labels:
-        app: llm-chat-mock
+        app: openai-llm-gateway-mock
     spec:
       containers:
         - name: mock
-          image: llm-chat-mock:ci
+          image: openai-llm-gateway-mock:ci
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 11434
@@ -28,10 +28,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: llm-chat-mock
+  name: openai-llm-gateway-mock
 spec:
   selector:
-    app: llm-chat-mock
+    app: openai-llm-gateway-mock
   ports:
     - port: 11434
       targetPort: 11434

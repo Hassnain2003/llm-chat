@@ -13,7 +13,7 @@ for environment in "${compose_env[@]}"; do
   export "$environment"
 done
 label="${RUN_LABEL:-latest}"
-result_file="/tmp/llm-chat-${target}-${label}-summary.json"
+result_file="/tmp/openai-llm-gateway-${target}-${label}-summary.json"
 rm -f "$result_file"
 docker compose down --remove-orphans
 docker compose -f docker-compose.yml -f docker-compose.loadtest.yml up --build -d
@@ -22,7 +22,7 @@ until curl --fail --silent http://localhost:8080/ready >/dev/null; do sleep 2; d
 docker compose exec -T ollama ollama pull "${MODEL:-tinyllama}" >/dev/null
 max_queue_depth=0
 if [[ "$target" == overload ]]; then
-  max_queue_file="/tmp/llm-chat-overload-max-depth"
+  max_queue_file="/tmp/openai-llm-gateway-overload-max-depth"
   printf '0\n' > "$max_queue_file"
   ( while true; do
       value="$(curl --silent http://localhost:8080/metrics | awk '$1 == "llm_chat_queue_depth" {print $2; exit}')"

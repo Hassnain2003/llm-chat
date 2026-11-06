@@ -1,8 +1,11 @@
+name: openai-llm-gateway
+
 services:
   gateway:
     build:
       context: .
       dockerfile: gateway/Dockerfile
+    image: openai-llm-gateway:local
     environment:
       MODEL_BACKEND_URL: http://ollama:11434
       MODEL_NAME: ${MODEL_NAME:-tinyllama}
@@ -36,9 +39,9 @@ services:
     image: grafana/grafana:11.4.0
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/llm-chat.json
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/openai-llm-gateway.json
     volumes:
-      - ./k8s/monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/llm-chat.json:ro
+      - ./k8s/monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/openai-llm-gateway.json:ro
       - ./monitoring/grafana-provisioning:/etc/grafana/provisioning:ro
     ports:
       - "3000:3000"

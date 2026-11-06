@@ -1,6 +1,6 @@
 apiVersion: v2
-name: llm-chat
-description: OpenAI-compatible LLM gateway with Ollama and vLLM deployment values
+name: openai-llm-gateway
+description: OpenAI-compatible LLM gateway with Ollama and a vLLM adapter tested with a mocked backend
 type: application
 version: 0.1.0
 appVersion: "1.0.0"

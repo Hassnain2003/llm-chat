@@ -1,6 +1,6 @@
-# LLM Chat Helm Values
-# Local CPU:  helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
-# AWS GPU:    helm upgrade --install llm-chat ./chart -f chart/values.yaml -f chart/values-gpu.yaml
+# OpenAI LLM Gateway Helm Values
+# Local CPU:  helm upgrade --install openai-llm-gateway ./chart -f chart/values-local.yaml
+# AWS GPU:    helm upgrade --install openai-llm-gateway ./chart -f chart/values.yaml -f chart/values-gpu.yaml
 
 model:
   backend: ollama           # ollama | vllm
@@ -16,7 +16,7 @@ gpu:
   instanceType: g4dn.xlarge
 
 gateway:
-  image: llm-chat-gateway
+  image: openai-llm-gateway
   tag: latest
   replicas: 2
   port: 8080
@@ -48,4 +48,4 @@ monitoring:
 
 ingress:
   enabled: false
-  host: llm-chat.example.com
+  host: openai-llm-gateway.example.com
