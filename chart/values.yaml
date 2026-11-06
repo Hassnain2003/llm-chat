@@ -1,4 +1,4 @@
-# InferenceForge Helm Values
+# LLM Chat Helm Values
 # Local CPU:  helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
 # AWS GPU:    helm upgrade --install llm-chat ./chart -f chart/values.yaml -f chart/values-gpu.yaml
 
@@ -16,7 +16,7 @@ gpu:
   instanceType: g4dn.xlarge
 
 gateway:
-  image: inferenceforge-gateway
+  image: llm-chat-gateway
   tag: latest
   replicas: 2
   port: 8080
@@ -48,4 +48,4 @@ monitoring:
 
 ingress:
   enabled: false
-  host: inferenceforge.example.com
+  host: llm-chat.example.com

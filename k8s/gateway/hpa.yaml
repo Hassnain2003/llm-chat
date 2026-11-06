@@ -1,12 +1,12 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: inferenceforge-gateway-hpa
+  name: llm-chat-gateway-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: inferenceforge-gateway
+    name: llm-chat-gateway
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -21,7 +21,7 @@ spec:
     - type: Pods
       pods:
         metric:
-          name: inferenceforge_queue_depth
+          name: llm_chat_queue_depth
         target:
           type: AverageValue
           averageValue: "10"

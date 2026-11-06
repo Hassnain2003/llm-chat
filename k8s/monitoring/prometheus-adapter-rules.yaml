@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-chat-prometheus-adapter-rules
+  namespace: monitoring
+data:
+  config.yaml: |
+    rules:
+      - seriesQuery: 'llm_chat_queue_depth'
+        resources:
+          overrides:
+            namespace: {resource: namespace}
+            pod: {resource: pod}
+        name:
+          matches: "^(.*)$"
+          as: "llm_chat_queue_depth"
+        metricsQuery: 'avg(llm_chat_queue_depth) by (namespace, pod)'

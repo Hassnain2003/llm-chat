@@ -48,7 +48,7 @@ The gateway is at `http://localhost:8080`, Prometheus at `http://localhost:9090`
 - Token-bucket rate limiting: configured API keys use their own limits; requests without a configured key use the client IP fallback.
 - `Retry-After` on rate-limit responses, request IDs in `X-Request-ID`, and JSON request-completion logs.
 - Request timeout and client-disconnect cancellation, with queue-slot cleanup.
-- Prometheus metrics at `/metrics`, including queue depth, cancellation/timeout counts, time-to-first-token, and the latest streaming tokens/sec.
+- Prometheus metrics at `/metrics`, including queue depth, cancellation/timeout counts, time-to-first-chunk, and the latest streaming chunks/sec.
 - `/health`, `/ready`, and `/queue/status` endpoints.
 - Helm templates for CPU/Ollama and GPU/vLLM deployment, raw Kubernetes manifests, and Terraform for the optional EKS path.
 
@@ -88,6 +88,17 @@ The gateway listens on pod port `8080`. Kubernetes Services expose it on port `8
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the design decisions and known limitations.
 
+## Repository layout
+
+- `gateway/`: FastAPI application, adapters, queue, limiter, and metrics.
+- `tests/`: gateway unit and endpoint tests.
+- `chart/`: Helm chart and CPU/GPU values files.
+- `k8s/`: raw Kubernetes manifests and monitoring resources.
+- `infra/`: optional EKS Terraform configuration.
+- `loadtest/`: k6 scenario definitions.
+- `docs/`: benchmark output instructions and screenshot TODOs.
+- `.github/workflows/`: CI workflow.
+
 ## Local Kubernetes
 
 The no-cloud path uses kind (or an equivalent local Kubernetes cluster):
@@ -112,9 +123,25 @@ helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
 
 ## Benchmarks
 
-No benchmark numbers are committed. Run `make loadtest` only when the gateway and model are available; it runs the 10-, 50-, and 100-concurrent-user k6 scenarios and writes the command output to `docs/results.md`.
+No benchmark numbers are committed. Run `make loadtest` only when the gateway and model are available; it runs the 10-, 50-, and 100-concurrent-user scenarios using k6 when installed or a standard-library Python fallback, and writes the measured output to `docs/results.md`.
 
-| Concurrent users | Requests/sec | p95 latency | Error rate |
+### Metrics exposed
+
+The following metric families are emitted by the gateway and are checked by the test suite:
+
+- `llm_chat_requests_total`
+- `llm_chat_request_duration_seconds`
+- `llm_chat_queue_depth`
+- `llm_chat_tokens_total`
+- `llm_chat_active_requests`
+- `llm_chat_backend_errors_total`
+- `llm_chat_time_to_first_chunk_seconds`
+- `llm_chat_stream_chunks_per_second`
+- `llm_chat_cancelled_requests_total`
+
+`llm_chat_tokens_total` uses `eval_count` from Ollama responses or `usage.completion_tokens` from vLLM responses when the backend supplies them. The streaming chunks/sec metric counts SSE chunks, not model tokens.
+
+| Concurrent users | Throughput | Latency | Error rate |
 |---:|---:|---:|---:|
 | 10 | TODO - run `make loadtest` | TODO - run `make loadtest` | TODO - run `make loadtest` |
 | 50 | TODO - run `make loadtest` | TODO - run `make loadtest` | TODO - run `make loadtest` |
@@ -138,3 +165,7 @@ Model: `TODO - record exact model name and quantization`.
 - Add integration tests that run against disposable Ollama and vLLM-compatible backends.
 - Add a documented production ingress/authentication example.
 - Fill the benchmark table and add Grafana screenshots from measured runs.
+
+## Acknowledgments
+
+Inspired by [lmenta/inferenceforge](https://github.com/lmenta/inferenceforge). This repository is independently implemented and licensed under MIT.
