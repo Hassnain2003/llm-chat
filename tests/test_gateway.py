@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 
 import httpx
 import pytest
@@ -48,6 +49,35 @@ async def test_health_and_metrics(client):
     assert health.json()["status"] == "ok"
     assert metrics.status_code == 200
     assert b"inferenceforge_requests_total" in metrics.content
+
+
+@pytest.mark.asyncio
+async def test_ready_checks_backend(client, monkeypatch):
+    class BackendClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, *args, **kwargs):
+            return httpx.Response(200, request=httpx.Request("GET", "http://backend/api/tags"))
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", BackendClient)
+    response = await client.get("/ready")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ready"}
+
+
+def test_json_formatter_includes_request_context():
+    record = logging.LogRecord("gateway", logging.INFO, "", 0, "done", (), None)
+    record.context = {"request_id": "req-1"}
+    formatted = json.loads(main.JsonFormatter().format(record))
+    assert formatted["message"] == "done"
+    assert formatted["request_id"] == "req-1"
 
 
 @pytest.mark.asyncio
