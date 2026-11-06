@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: llm-chat-model
+  name: openai-llm-gateway-model
   labels:
-    app: llm-chat-model
+    app: openai-llm-gateway-model
 spec:
   selector:
-    app: llm-chat-model
+    app: openai-llm-gateway-model
   ports:
     - name: http
       port: 11434        # Ollama port (vLLM uses 8000 — set via configmap)

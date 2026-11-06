@@ -3,7 +3,7 @@
 ## Components
 
 - **Gateway**: FastAPI process that validates the OpenAI-compatible request, applies rate limits, reserves bounded capacity, translates backend payloads, and exposes metrics.
-- **Model backend**: Ollama for local CPU development or vLLM for an optional GPU deployment.
+- **Model backend**: Ollama for local CPU development or a vLLM adapter (tested with a mocked backend) for an optional GPU deployment.
 - **Observability**: Prometheus scrapes `/metrics`; Grafana reads Prometheus and displays the checked-in dashboard definition.
 
 ## Design decisions
@@ -28,5 +28,5 @@ Token buckets allow a configured burst up to the bucket capacity while refilling
 
 - Rate-limit buckets, queue depth, and active-request metrics are process-local. A multi-replica deployment needs a shared limiter and carefully aggregated capacity if global enforcement is required.
 - Client disconnect detection is cooperative and depends on the ASGI server reporting disconnects.
-- The backend adapters normalize common Ollama responses and pass through vLLM responses; they are not a full provider compatibility layer.
+- The backend adapters normalize common Ollama responses and pass through vLLM responses; the vLLM adapter is tested with a mocked backend and is not a full provider compatibility layer.
 - Kubernetes, Terraform, and GPU settings require environment-specific security, storage, ingress, and secret review.

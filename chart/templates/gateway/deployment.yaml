@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llm-chat-gateway
+  name: openai-llm-gateway-gateway
   labels:
-    app: llm-chat-gateway
+    app: openai-llm-gateway-gateway
 spec:
   replicas: {{ .Values.gateway.replicas }}
   selector:
     matchLabels:
-      app: llm-chat-gateway
+      app: openai-llm-gateway-gateway
   template:
     metadata:
       labels:
-        app: llm-chat-gateway
+        app: openai-llm-gateway-gateway
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ .Values.gateway.port }}"
@@ -28,17 +28,17 @@ spec:
             - name: MODEL_BACKEND_URL
               valueFrom:
                 configMapKeyRef:
-                  name: llm-chat-config
+                  name: openai-llm-gateway-config
                   key: model_backend_url
             - name: MODEL_NAME
               valueFrom:
                 configMapKeyRef:
-                  name: llm-chat-config
+                  name: openai-llm-gateway-config
                   key: model_name
             - name: BACKEND_TYPE
               valueFrom:
                 configMapKeyRef:
-                  name: llm-chat-config
+                  name: openai-llm-gateway-config
                   key: backend_type
             - name: RATE_LIMIT_PER_MINUTE
               value: "{{ .Values.gateway.rateLimit }}"

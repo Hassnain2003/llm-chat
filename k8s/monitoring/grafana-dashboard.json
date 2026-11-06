@@ -7,10 +7,10 @@
       "pluginId": "prometheus"
     }
   ],
-  "title": "LLM Chat Gateway",
-  "uid": "llm-chat",
+  "title": "OpenAI LLM Gateway",
+  "uid": "openai-llm-gateway",
   "tags": [
-    "llm-chat",
+    "openai-llm-gateway",
     "llm",
     "kubernetes"
   ],

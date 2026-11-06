@@ -70,8 +70,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="LLM Chat Gateway",
-    description="OpenAI-compatible gateway for Ollama and vLLM backends",
+    title="OpenAI LLM Gateway",
+    description="OpenAI-compatible gateway for Ollama and a vLLM adapter tested with a mocked backend",
     version="1.0.0",
     lifespan=lifespan,
 )

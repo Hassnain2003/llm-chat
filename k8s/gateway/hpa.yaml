@@ -1,14 +1,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: llm-chat-gateway-hpa
+  name: openai-llm-gateway-gateway-hpa
   annotations:
-    llm-chat.dev/status: optional-untested
+    openai-llm-gateway.dev/status: optional-untested
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: llm-chat-gateway
+    name: openai-llm-gateway-gateway
   minReplicas: 2
   maxReplicas: 10
   metrics:

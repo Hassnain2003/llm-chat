@@ -2,7 +2,7 @@
 
 This audit is based on this repository's git history and the round-two/round-three changes; the upstream repository was not opened or copied during this work.
 
-- `chart/`: written for this project's `llm-chat` chart; round-two renamed resources and values and round-three marked the HPA optional and untested.
+- `chart/`: written for this project's `openai-llm-gateway` chart; round-two renamed resources and values and round-three marked the HPA optional and untested.
 - `k8s/`: written for this project's gateway/Ollama deployment; round-three pinned the Ollama image and added a separate smoke-test mock backend.
 - `infra/`: written for this project's optional EKS path; unsupported cost claims and legacy naming were removed.
 - `k8s/monitoring/grafana-dashboard.json`: written for this project's `llm_chat_` metrics; round-two replaced legacy queries and round-three removed unavailable DCGM panels.

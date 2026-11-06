@@ -2,18 +2,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llm-chat-model
+  name: openai-llm-gateway-model
   labels:
-    app: llm-chat-model
+    app: openai-llm-gateway-model
 spec:
   replicas: {{ .Values.model.replicas }}
   selector:
     matchLabels:
-      app: llm-chat-model
+      app: openai-llm-gateway-model
   template:
     metadata:
       labels:
-        app: llm-chat-model
+        app: openai-llm-gateway-model
     spec:
       {{- if .Values.gpu.enabled }}
       tolerations:
@@ -55,18 +55,18 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: llm-chat-model
+  name: openai-llm-gateway-model
   labels:
-    app: llm-chat-model
+    app: openai-llm-gateway-model
 spec:
   replicas: {{ .Values.model.replicas }}
   selector:
     matchLabels:
-      app: llm-chat-model
+      app: openai-llm-gateway-model
   template:
     metadata:
       labels:
-        app: llm-chat-model
+        app: openai-llm-gateway-model
     spec:
       tolerations:
         - key: nvidia.com/gpu

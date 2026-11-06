@@ -1,6 +1,6 @@
 # Local development overrides
-# Usage: helm template llm-chat ./chart -f chart/values-local.yaml
-#        helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
+# Usage: helm template openai-llm-gateway ./chart -f chart/values-local.yaml
+#        helm upgrade --install openai-llm-gateway ./chart -f chart/values-local.yaml
 
 model:
   backend: ollama
@@ -11,7 +11,7 @@ gpu:
   enabled: false        # CPU only locally
 
 gateway:
-  image: llm-chat-gateway
+  image: openai-llm-gateway
   tag: latest
   replicas: 1           # single replica locally
   port: 8080

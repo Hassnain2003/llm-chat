@@ -18,8 +18,8 @@ provider "aws" {
 provider "helm" {}
 
 locals {
-  cluster_name = "llm-chat-${var.environment}"
-  common_tags  = { Project = "llm-chat", Environment = var.environment, ManagedBy = "terraform" }
+  cluster_name = "openai-llm-gateway-${var.environment}"
+  common_tags  = { Project = "openai-llm-gateway", Environment = var.environment, ManagedBy = "terraform" }
 }
 
 # ── VPC ───────────────────────────────────────────────────────────────────────

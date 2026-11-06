@@ -2,7 +2,7 @@
 set -euo pipefail
 
 label="${RUN_LABEL:-latest}"
-result_file="/tmp/llm-chat-baseline-${label}-summary.json"
+result_file="/tmp/openai-llm-gateway-baseline-${label}-summary.json"
 rm -f "$result_file"
 docker compose up --build -d ollama
 trap 'docker compose down --remove-orphans' EXIT

@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: llm-chat-config
+  name: openai-llm-gateway-config
   labels:
-    app.kubernetes.io/name: llm-chat
+    app.kubernetes.io/name: openai-llm-gateway
 data:
-  model_backend_url: "http://llm-chat-model:{{ .Values.model.backendPort }}"
+  model_backend_url: "http://openai-llm-gateway-model:{{ .Values.model.backendPort }}"
   model_name: "{{ .Values.model.name }}"
   backend_type: "{{ .Values.model.backend }}"

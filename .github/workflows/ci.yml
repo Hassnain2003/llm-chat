@@ -24,7 +24,7 @@ jobs:
         with:
           version: 3.16.4
       - run: helm lint ./chart -f chart/values-local.yaml
-      - run: helm template llm-chat ./chart -f chart/values-local.yaml > /tmp/helm.yaml
+      - run: helm template openai-llm-gateway ./chart -f chart/values-local.yaml > /tmp/helm.yaml
       - run: docker run --rm -i ghcr.io/yannh/kubeconform:v0.7.0 -strict -ignore-missing-schemas -summary < /tmp/helm.yaml
       - run: find k8s -type f \( -name '*.yaml' -o -name '*.yml' \) -printf '/work/%p\0' | xargs -0 docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:v0.7.0 -strict -ignore-missing-schemas -summary
 
@@ -48,7 +48,7 @@ jobs:
           context: .
           file: gateway/Dockerfile
           push: false
-          tags: llm-chat-gateway:ci
+          tags: openai-llm-gateway:ci
 
   kind-smoke:
     runs-on: ubuntu-latest
@@ -59,7 +59,7 @@ jobs:
           version: v0.30.0
           node_image: kindest/node:v1.31.4
       - run: make kind-up
-      - run: docker build -t llm-chat-gateway:local -f gateway/Dockerfile .
+      - run: docker build -t openai-llm-gateway:local -f gateway/Dockerfile .
       - run: make kind-deploy-mock
       - run: make kind-test
       - if: always()
