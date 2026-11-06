@@ -9,6 +9,7 @@ services:
       BACKEND_TYPE: ollama
       RATE_LIMIT_PER_MINUTE: 60
       QUEUE_MAX_DEPTH: 100
+      REQUEST_TIMEOUT: 120
     ports:
       - "8080:8080"
     depends_on:

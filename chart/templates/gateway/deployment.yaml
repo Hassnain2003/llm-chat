@@ -44,6 +44,8 @@ spec:
               value: "{{ .Values.gateway.rateLimit }}"
             - name: QUEUE_MAX_DEPTH
               value: "{{ .Values.gateway.queueDepth }}"
+            - name: REQUEST_TIMEOUT
+              value: "{{ .Values.gateway.requestTimeout }}"
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
           livenessProbe:

@@ -42,6 +42,12 @@ spec:
                 configMapKeyRef:
                   name: inferenceforge-config
                   key: backend_type
+            - name: RATE_LIMIT_PER_MINUTE
+              value: "60"
+            - name: QUEUE_MAX_DEPTH
+              value: "100"
+            - name: REQUEST_TIMEOUT
+              value: "120"
           resources:
             requests:
               cpu: "250m"
