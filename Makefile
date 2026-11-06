@@ -64,6 +64,7 @@ kind-test:
 kind-deploy-mock:
 	docker build -t llm-chat-mock:ci -f tests/mock_backend/Dockerfile tests/mock_backend
 	kind load docker-image llm-chat-mock:ci --name llm-chat
+	kind load docker-image llm-chat-gateway:local --name llm-chat
 	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
 	kubectl apply -n $(NAMESPACE) -f k8s/mock-backend.yaml
 	sed 's#http://llm-chat-model:11434#http://llm-chat-mock:11434#' k8s/model/configmap.yaml | kubectl apply -n $(NAMESPACE) -f -
