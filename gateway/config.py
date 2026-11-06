@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from pydantic_settings import BaseSettings
 
 
@@ -8,12 +10,28 @@ class Settings(BaseSettings):
     model_name: str = "tinyllama"
     backend_type: str = "ollama"  # ollama | vllm
     rate_limit_per_minute: int = 60
+    api_keys: str = ""
     queue_max_depth: int = 100
     request_timeout: int = 120
 
     class Config:
         env_file = ".env"
         extra = "ignore"
+
+    @property
+    def api_key_limits(self) -> dict[str, int]:
+        if not self.api_keys:
+            return {}
+        try:
+            parsed = json.loads(self.api_keys)
+        except json.JSONDecodeError as exc:
+            raise ValueError("API_KEYS must be a JSON object mapping keys to limits") from exc
+        if not isinstance(parsed, dict) or not all(
+            isinstance(key, str) and isinstance(value, int) and value > 0
+            for key, value in parsed.items()
+        ):
+            raise ValueError("API_KEYS values must be positive integer requests-per-minute limits")
+        return parsed
 
 
 settings = Settings()

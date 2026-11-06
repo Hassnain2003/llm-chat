@@ -2,31 +2,28 @@
 
 from __future__ import annotations
 
-import asyncio
-
 from gateway.metrics import queue_depth
 
 
 class RequestQueue:
     def __init__(self, max_depth: int = 100):
-        self._sem = asyncio.Semaphore(max_depth)
         self._max = max_depth
         self._active = 0
 
-    async def __aenter__(self):
-        await self._sem.acquire()
+    def try_acquire(self) -> bool:
+        if self._active >= self._max:
+            return False
         self._active += 1
-        queue_depth.set(self._max - self._sem._value)
-        return self
+        queue_depth.set(self._active)
+        return True
 
-    async def __aexit__(self, *_):
-        self._active -= 1
-        self._sem.release()
-        queue_depth.set(self._max - self._sem._value)
+    def release(self) -> None:
+        self._active = max(0, self._active - 1)
+        queue_depth.set(self._active)
 
     @property
     def depth(self) -> int:
-        return self._max - self._sem._value
+        return self._active
 
     def is_full(self) -> bool:
-        return self._sem._value == 0
+        return self._active >= self._max
