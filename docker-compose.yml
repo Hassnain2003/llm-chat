@@ -1,3 +1,5 @@
+name: openai-llm-gateway
+
 services:
   gateway:
     build:
