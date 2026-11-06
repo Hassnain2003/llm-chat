@@ -30,9 +30,9 @@ module "vpc" {
   public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
 
   enable_nat_gateway = true
-  single_nat_gateway = true  # cost optimisation
+  single_nat_gateway = true # cost optimisation
 
-  public_subnet_tags  = { "kubernetes.io/role/elb" = 1 }
+  public_subnet_tags = { "kubernetes.io/role/elb" = 1 }
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = 1
     "karpenter.sh/discovery"          = local.cluster_name
@@ -80,7 +80,7 @@ resource "aws_eks_node_group" "gpu" {
   instance_types = [var.gpu_instance_type]
 
   scaling_config {
-    desired_size = 0           # scale to 0 when idle = $0 cost
+    desired_size = 0 # scale to 0 when idle = $0 cost
     min_size     = 0
     max_size     = var.gpu_max_nodes
   }
@@ -96,8 +96,8 @@ resource "aws_eks_node_group" "gpu" {
   }
 
   labels = {
-    role                              = "gpu"
-    "k8s.amazonaws.com/accelerator"   = "nvidia-tesla-t4"
+    role                            = "gpu"
+    "k8s.amazonaws.com/accelerator" = "nvidia-tesla-t4"
   }
 
   tags = merge(local.common_tags, {
@@ -149,7 +149,7 @@ resource "aws_iam_role" "karpenter" {
 
 # ── Outputs ───────────────────────────────────────────────────────────────────
 
-output "cluster_name"     { value = module.eks.cluster_name }
+output "cluster_name" { value = module.eks.cluster_name }
 output "cluster_endpoint" { value = module.eks.cluster_endpoint }
 output "kubeconfig_command" {
   value = "aws eks update-kubeconfig --name ${module.eks.cluster_name} --region ${var.region}"

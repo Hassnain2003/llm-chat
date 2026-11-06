@@ -23,8 +23,8 @@ jobs:
       - uses: azure/setup-helm@v4
       - run: helm lint ./chart -f chart/values-local.yaml
       - run: helm template llm-chat ./chart -f chart/values-local.yaml > /tmp/helm.yaml
-      - run: docker run --rm -i zegl/kubeconform:latest -strict -ignore-missing-schemas -summary < /tmp/helm.yaml
-      - run: docker run --rm -v "$PWD:/work" zegl/kubeconform:latest -strict -ignore-missing-schemas -summary /work/k8s
+      - run: docker run --rm -i ghcr.io/yannh/kubeconform:latest -strict -ignore-missing-schemas -summary < /tmp/helm.yaml
+      - run: docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:latest -strict -ignore-missing-schemas -summary /work/k8s
 
   terraform:
     runs-on: ubuntu-latest
