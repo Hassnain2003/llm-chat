@@ -49,3 +49,18 @@ jobs:
           file: gateway/Dockerfile
           push: false
           tags: llm-chat-gateway:ci
+
+  kind-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: helm/kind-action@v1.12.0
+        with:
+          version: v0.30.0
+          node_image: kindest/node:v1.31.4
+      - run: make kind-up
+      - run: docker build -t llm-chat-gateway:local -f gateway/Dockerfile .
+      - run: make kind-deploy-mock
+      - run: make kind-test
+      - if: always()
+        run: make kind-down
