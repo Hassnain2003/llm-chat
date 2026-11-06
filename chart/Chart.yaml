@@ -1,6 +1,6 @@
 apiVersion: v2
 name: llm-chat
-description: GPU-native LLM inference platform for Kubernetes
+description: OpenAI-compatible LLM gateway with Ollama and vLLM deployment values
 type: application
 version: 0.1.0
 appVersion: "1.0.0"

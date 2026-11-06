@@ -19,6 +19,6 @@ variable "gpu_max_nodes" {
 }
 
 variable "use_spot" {
-  description = "Use EC2 Spot instances for GPU nodes (~70% cheaper)"
+  description = "Use EC2 Spot instances for GPU nodes"
   default     = true
 }
