@@ -106,9 +106,12 @@ The no-cloud path uses kind (or an equivalent local Kubernetes cluster):
 ```bash
 make kind-up
 make kind-deploy
+make kind-test
 ```
 
-The EKS/GPU path is optional:
+This local path was verified with kind, including health, readiness, non-streaming, streaming, and
+zero gateway restarts. The optional HPA and custom-metrics path was not verified. The EKS/GPU path
+is a deployment starting point, not a claim that AWS resources were applied:
 
 ```bash
 helm upgrade --install llm-chat ./chart \
@@ -126,9 +129,10 @@ helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
 The benchmark harness is split into three commands:
 
 - `make loadtest-limiter`: limiter verification, not a performance benchmark.
+- `make loadtest-baseline`: direct Ollama baseline, bypassing the gateway.
 - `make loadtest-capacity`: CPU-only capacity stages at 1, 2, 4, 8, and 16 virtual users.
 - `make loadtest-overload`: queue overload verification with a queue depth of 4.
-- `make loadtest`: runs all three commands in order and writes separate sections to [docs/results.md](docs/results.md).
+- `make loadtest`: runs all four commands in order and writes separate sections to [docs/results.md](docs/results.md).
 
 Capacity uses fixed prompts, `max_tokens: 64`, a 15-second warm-up request, and a raised rate limit. Latency and token-rate columns include only 2xx responses. Capacity numbers describe gateway behavior around a CPU-only 1.1B model on the recorded hardware; they are not a claim about model speed.
 
@@ -169,6 +173,18 @@ the git commit used for each run. Capacity numbers are for a CPU-only 1.1B model
 hardware and are meant to show gateway behavior, not model speed. A run with more than 1%
 non-2xx responses must be treated as a limiter or overload test, not a latency benchmark.
 
+The direct baseline uses Ollama's native `/api/chat`, while the gateway uses its
+OpenAI-compatible endpoint. Any difference therefore represents gateway overhead plus
+run-to-run noise, not a pure gateway-only measurement. The baseline and gateway should each
+be run at least twice before drawing conclusions; the recorded baseline runs are in
+[docs/results.md](docs/results.md).
+
+### Baseline comparison
+
+The 1-VU and 4-VU gateway-versus-direct comparisons for both recorded runs are generated in
+[docs/results.md](docs/results.md). Each source section records the hardware, date, exact
+command, and git commit; the comparison is derived from those measured tables.
+
 ### Metrics exposed
 
 The following metric families are emitted by the gateway and are checked by the test suite:
@@ -190,7 +206,7 @@ The following metric families are emitted by the gateway and are checked by the 
 - Rate-limit state and queue depth are process-local; multiple replicas do not share them.
 - The gateway does not include authentication, model downloads, or persistent request storage.
 - The in-process queue bounds work per gateway process, not globally.
-- The EKS Terraform and GPU manifests are deployment starting points and still need environment-specific review.
+- The EKS Terraform, GPU manifests, and optional HPA/custom-metrics path are deployment starting points and were not applied or autoscaling-tested here.
 - Grafana screenshots are intentionally left for a real local run in [docs/screenshots](docs/screenshots).
 
 ## Roadmap
