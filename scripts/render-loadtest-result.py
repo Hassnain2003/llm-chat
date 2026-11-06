@@ -58,9 +58,11 @@ def gateway_histogram() -> tuple[int, str, str]:
     return total, quantile(0.5), quantile(0.95)
 
 
-def section(target: str, data: dict) -> str:
-    lines = [START.format(target=target), f"## {target.title()} load test", *metadata()]
-    lines.append(f"- Exact command: `make loadtest-{target}`")
+def section(target: str, data: dict, label: str) -> str:
+    marker_target = f"{target}-{label}" if label else target
+    lines = [START.format(target=marker_target), f"## {target.title()} load test ({label or 'latest'})", *metadata()]
+    command_label = f" RUN_LABEL={label}" if label else ""
+    lines.append(f"- Exact command: `make loadtest-{target}{command_label}`")
     if target == "limiter":
         lines += [
             "",
@@ -70,6 +72,21 @@ def section(target: str, data: dict) -> str:
             "|---:|---:|---:|---:|",
             f"| {data['status200']} | {data['status429']} | {data['retryAfterMissing']} | {data['keyBSuccess']} |",
         ]
+    elif target == "baseline":
+        lines += [
+            "",
+            "Direct Ollama native `/api/chat` baseline. This is not an OpenAI gateway run.",
+            "",
+            "| VUs | Successful req/s | Completion tokens/s | p50 latency (ms) | p95 latency (ms) | p99 latency (ms) | 200 | Other |",
+            "|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+        for vus, values in data["stages"].items():
+            latency = values["latency"]
+            lines.append(
+                f"| {vus} | {values['successful'] / 60:.3f} | {values['completionTokens'] / 60:.3f} | "
+                f"{latency.get('med', 'n/a')} | {latency.get('p(95)', 'n/a')} | "
+                f"{latency.get('p(99)', 'n/a')} | {values['successful']} | {values['statusOther']} |"
+            )
     elif target == "overload":
         max_depth = sys.argv[3] if len(sys.argv) > 3 else "not recorded"
         lines += [
@@ -105,14 +122,15 @@ def section(target: str, data: dict) -> str:
                 f"p50: {histogram_p50}; p95: {histogram_p95}."
             ),
         ]
-    lines.append(END.format(target=target))
+    lines.append(END.format(target=marker_target))
     return "\n".join(lines)
 
 
-def replace(target: str, rendered: str) -> None:
+def replace(target: str, rendered: str, label: str) -> None:
     existing = RESULTS.read_text() if RESULTS.exists() else "# Load-test results\n"
-    start = START.format(target=target)
-    end = END.format(target=target)
+    marker_target = f"{target}-{label}" if label else target
+    start = START.format(target=marker_target)
+    end = END.format(target=marker_target)
     before = existing.split(start, 1)[0].rstrip()
     after = existing.split(end, 1)[1] if end in existing else ""
     RESULTS.write_text(f"{before}\n\n{rendered}\n{after.lstrip()}")
@@ -120,4 +138,5 @@ def replace(target: str, rendered: str) -> None:
 
 if __name__ == "__main__":
     target, result_path = sys.argv[1], sys.argv[2]
-    replace(target, section(target, json.loads(Path(result_path).read_text())))
+    label = sys.argv[4] if len(sys.argv) > 4 else ""
+    replace(target, section(target, json.loads(Path(result_path).read_text()), label), label)

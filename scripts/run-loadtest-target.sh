@@ -12,7 +12,8 @@ esac
 for environment in "${compose_env[@]}"; do
   export "$environment"
 done
-result_file="/tmp/llm-chat-${target}-summary.json"
+label="${RUN_LABEL:-latest}"
+result_file="/tmp/llm-chat-${target}-${label}-summary.json"
 rm -f "$result_file"
 docker compose down --remove-orphans
 docker compose -f docker-compose.yml -f docker-compose.loadtest.yml up --build -d
@@ -40,4 +41,4 @@ if [[ "$target" == overload ]]; then
   max_queue_depth="$(cat "$max_queue_file")"
 fi
 (( status == 0 )) || exit "$status"
-python3 scripts/render-loadtest-result.py "$target" "$result_file" "$max_queue_depth"
+python3 scripts/render-loadtest-result.py "$target" "$result_file" "$max_queue_depth" "$label"
