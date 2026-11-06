@@ -3,6 +3,8 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: llm-chat-gateway-hpa
+  annotations:
+    llm-chat.dev/status: optional-untested
   labels:
     app.kubernetes.io/name: llm-chat
 spec:

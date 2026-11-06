@@ -12,9 +12,9 @@
 
 Model inference is an expensive, finite resource. The gateway reserves one process-local slot before calling the backend and releases it in a `finally` path, including cancellation and timeout. Returning `503` when capacity is full is explicit backpressure rather than unbounded memory growth.
 
-### Why HPA can scale on queue depth
+### Optional HPA design (not verified here)
 
-CPU utilization alone can miss a saturated model backend: the gateway may be mostly waiting on I/O while requests accumulate. The Kubernetes HPA includes the exported `llm_chat_queue_depth` metric as a signal, provided a Prometheus adapter is installed and configured for that custom metric.
+CPU utilization alone can miss a saturated model backend: the gateway may be mostly waiting on I/O while requests accumulate. The repository includes an optional HPA manifest that names `llm_chat_queue_depth`, but this project has not verified Prometheus Adapter, the custom-metrics API, or scale-up behavior in kind.
 
 ### Why gateway and model are separate services?
 
