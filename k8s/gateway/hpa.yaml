@@ -2,6 +2,8 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: llm-chat-gateway-hpa
+  annotations:
+    llm-chat.dev/status: optional-untested
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -17,7 +19,7 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
-    # Scale on queue depth via custom metric (requires prometheus-adapter)
+    # Optional, untested: requires Prometheus Adapter and the custom-metrics API.
     - type: Pods
       pods:
         metric:
