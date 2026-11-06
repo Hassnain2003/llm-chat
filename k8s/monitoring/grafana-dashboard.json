@@ -67,7 +67,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "rate(llm_chat_requests_total[1m])",
           "legendFormat": "req/s"
         }
@@ -109,7 +109,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "sum(llm_chat_requests_total)",
           "legendFormat": "total"
         }
@@ -160,7 +160,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "rate(llm_chat_requests_total{status=\"error\"}[5m]) / rate(llm_chat_requests_total[5m]) or vector(0)",
           "legendFormat": "error %"
         }
@@ -210,7 +210,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "llm_chat_active_requests",
           "legendFormat": "active"
         }
@@ -260,7 +260,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "llm_chat_queue_depth",
           "legendFormat": "queued"
         }
@@ -303,7 +303,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "rate(llm_chat_tokens_total[1m])",
           "legendFormat": "tok/s"
         }
@@ -341,12 +341,12 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "rate(llm_chat_request_duration_seconds_sum[2m]) / rate(llm_chat_request_duration_seconds_count[2m])",
           "legendFormat": "average"
         },
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "rate(llm_chat_time_to_first_chunk_seconds_sum[2m]) / rate(llm_chat_time_to_first_chunk_seconds_count[2m])",
           "legendFormat": "average time to first chunk"
         }
@@ -374,7 +374,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "rate(llm_chat_request_duration_seconds_sum[2m]) / rate(llm_chat_request_duration_seconds_count[2m])",
           "legendFormat": "avg {{model}}"
         }
@@ -413,7 +413,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "rate(llm_chat_requests_total[1m])",
           "legendFormat": "{{status}}"
         }
@@ -441,12 +441,12 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "rate(llm_chat_tokens_total[1m])",
           "legendFormat": "backend-reported tokens \u2014 {{model}}"
         },
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "llm_chat_stream_chunks_per_second",
           "legendFormat": "stream chunks/s \u2014 {{model}}"
         }
@@ -477,7 +477,7 @@
       },
       "targets": [
         {
-          "datasource": "${DS_PROMETHEUS}",
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
           "expr": "llm_chat_queue_depth",
           "legendFormat": "queue depth"
         }
