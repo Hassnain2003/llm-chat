@@ -144,6 +144,43 @@ async def test_non_stream_ollama_adapter(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_non_stream_vllm_adapter(client, monkeypatch):
+    monkeypatch.setattr(main.settings, "backend_type", "vllm")
+
+    class BackendClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, json):
+            assert url == "http://backend/v1/chat/completions"
+            assert json["max_tokens"] == 512
+            response = httpx.Response(
+                200,
+                request=httpx.Request("POST", url),
+                json={
+                    "id": "chatcmpl-vllm",
+                    "choices": [{"message": {"role": "assistant", "content": "hello"}}],
+                    "usage": {"completion_tokens": 2},
+                },
+            )
+            return response
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", BackendClient)
+    response = await client.post(
+        "/v1/chat/completions",
+        json={"messages": [{"role": "user", "content": "hi"}]},
+    )
+    assert response.status_code == 200
+    assert response.json()["id"] == "chatcmpl-vllm"
+
+
+@pytest.mark.asyncio
 async def test_streaming_sse_and_vllm_adapter(client, monkeypatch):
     class StreamResponse:
         def raise_for_status(self):

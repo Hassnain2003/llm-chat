@@ -285,6 +285,7 @@ async def _stream_response(
 ) -> AsyncIterator[str]:
     token_count = 0
     first_token_at: float | None = None
+    status = "success"
     try:
         timeout = httpx.Timeout(settings.request_timeout)
         async with httpx.AsyncClient(timeout=timeout) as client, client.stream(
@@ -294,6 +295,7 @@ async def _stream_response(
                 async for line in response.aiter_lines():
                     if await request.is_disconnected():
                         _record_cancel("cancelled", model_name)
+                        status = "cancelled"
                         return
                     if not line:
                         continue
@@ -305,13 +307,16 @@ async def _stream_response(
                     yield f"data: {line}\n\n"
     except asyncio.CancelledError:
         _record_cancel("cancelled", model_name)
+        status = "cancelled"
         raise
     except httpx.TimeoutException:
         _record_cancel("timeout", model_name)
+        status = "timeout"
         raise
     except httpx.HTTPError as exc:
         backend_errors.labels(error_type=type(exc).__name__).inc()
-        request_count.labels(status="error", model=model_name).inc()
+        status = "error"
+        request_count.labels(status=status, model=model_name).inc()
         return
     finally:
         elapsed = time.perf_counter() - started_at
@@ -319,7 +324,8 @@ async def _stream_response(
         if token_count:
             tokens_generated.labels(model=model_name).inc(token_count)
             stream_tokens_per_second.labels(model=model_name).set(token_count / max(elapsed, 0.001))
-        request_count.labels(status="success", model=model_name).inc()
+        if status == "success":
+            request_count.labels(status=status, model=model_name).inc()
         active_requests.dec()
         _queue.release()
     yield "data: [DONE]\n\n"
