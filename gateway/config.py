@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import json
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(env_file=".env", extra="ignore")
+
     model_backend_url: str = "http://localhost:11434"  # Ollama local default
     model_name: str = "tinyllama"
     backend_type: str = "ollama"  # ollama | vllm
@@ -13,10 +16,6 @@ class Settings(BaseSettings):
     api_keys: str = ""
     queue_max_depth: int = 100
     request_timeout: int = 120
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
 
     @property
     def api_key_limits(self) -> dict[str, int]:

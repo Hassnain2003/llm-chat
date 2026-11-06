@@ -1,6 +1,6 @@
 # Local development overrides
-# Usage: helm template test ./chart -f chart/values-local.yaml
-#        helm install inferenceforge ./chart -f chart/values-local.yaml
+# Usage: helm template llm-chat ./chart -f chart/values-local.yaml
+#        helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
 
 model:
   backend: ollama
@@ -15,7 +15,7 @@ gateway:
   tag: latest
   replicas: 1           # single replica locally
   port: 8080
-  rateLimit: 120        # more relaxed for local testing
+  rateLimit: 60         # requests per minute per client
   queueDepth: 20
 
 autoscaling:

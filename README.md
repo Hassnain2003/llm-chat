@@ -1,282 +1,144 @@
-# LLM Chat API
+# LLM Chat Gateway
 
-> **Production-ready LLM inference gateway on Kubernetes.** OpenAI-compatible chat API with request queuing, per-IP rate limiting, Prometheus metrics, Helm deployment, and CPU/GPU switching — deploy on a laptop or AWS EKS with a single flag.
+An OpenAI-compatible FastAPI gateway that puts bounded concurrency, rate limiting, metrics, and request cancellation in front of Ollama or vLLM.
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-1.24+-green.svg)
-![Helm](https://img.shields.io/badge/Helm-3.0+-orange.svg)
-![Terraform](https://img.shields.io/badge/Terraform-1.5+-red.svg)
+[![CI](https://github.com/Hassnain2003/llm-chat/actions/workflows/ci.yml/badge.svg)](https://github.com/Hassnain2003/llm-chat/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
----
+## 60-second quick start
 
-## What this project provides
-
-Most "deploy an LLM" guides end at `ollama run` or a bare Docker container. **LLM Chat API** adds the production layer on top:
-
-- A FastAPI gateway that exposes an OpenAI-compatible `/v1/chat/completions` endpoint
-- Per-IP request rate limiting (sliding window, configurable)
-- asyncio.Semaphore-backed request queue with configurable depth
-- Prometheus metrics: request rate, latency (p50/p95/p99), queue depth, token throughput, active requests, backend errors
-- A Grafana dashboard with 12 panels for operational visibility
-- A Helm chart that swaps between local CPU and cloud GPU by changing a single values file
-- Raw Kubernetes manifests for users who prefer kubectl apply over Helm
-- Terraform infrastructure for EKS, GPU node groups, and Karpenter provisioning
-
-Everything is self-contained in one repository — no shared libraries, no monolithic setup guides.
-
----
-
-## Quick start (local, no Kubernetes)
-
-**Prerequisites:** Python 3.11+, [Ollama](https://ollama.com)
+Requirements: Python 3.11+, Docker Compose, and an Ollama model if you run the local backend yourself.
 
 ```bash
-# 1. Start Ollama and pull a model
-ollama serve &
-ollama pull gemma3:1b
-
-# 2. Install gateway dependencies
-python -m venv .venv && source .venv/bin/activate
+git clone https://github.com/Hassnain2003/llm-chat.git
+cd llm-chat
 pip install -r requirements.txt
-
-# 3. Start the gateway
-MODEL_BACKEND_URL=http://localhost:11434 \
-MODEL_NAME=gemma3:1b \
-BACKEND_TYPE=ollama \
-RATE_LIMIT_PER_MINUTE=120 \
-QUEUE_MAX_DEPTH=100 \
-uvicorn gateway.main:app --host 0.0.0.0 --port 8080
+make test
 ```
 
-Test it:
+Run the gateway against a local Ollama instance:
 
 ```bash
-curl http://localhost:8080/health
-curl http://localhost:8080/v1/chat/completions \\
-  -H "Content-Type: application/json" \\
-  -d '{"model":"gemma3:1b","messages":[{"role":"user","content":"Say hello in one sentence."}]}'
+MODEL_BACKEND_URL=http://localhost:11434 MODEL_NAME=tinyllama \
+  uvicorn gateway.main:app --host 0.0.0.0 --port 8080
 ```
 
----
-
-## Deploying to Kubernetes
-
-### Option A: Helm (recommended)
+Then call the OpenAI-compatible endpoint:
 
 ```bash
-helm install llm-chat ./chart -f chart/values-gpu.yaml
-helm install llm-chat ./chart -f chart/values-local.yaml
+curl -s http://localhost:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"tinyllama","messages":[{"role":"user","content":"Say hello."}]}'
 ```
 
-### Option B: Raw manifests
+For the complete local stack (gateway, Ollama, Prometheus, and Grafana), use:
 
 ```bash
-kubectl create namespace llm-chat
-kubectl apply -n llm-chat -f k8s/model/configmap.yaml
-kubectl apply -n llm-chat -f k8s/model/deployment.yaml
-kubectl apply -n llm-chat -f k8s/model/service.yaml
-kubectl apply -n llm-chat -f k8s/gateway/deployment.yaml
-kubectl apply -n llm-chat -f k8s/gateway/service.yaml
-kubectl apply -n llm-chat -f k8s/gateway/hpa.yaml
+make dev
 ```
 
----
+The gateway is at `http://localhost:8080`, Prometheus at `http://localhost:9090`, and Grafana at `http://localhost:3000` (`admin`/`admin`). The Compose Ollama service does not automatically download a model; pull the configured model with `docker compose exec ollama ollama pull tinyllama`.
 
-## How it works
+## What is implemented
 
-```
-Client                  Gateway (FastAPI)                  Model Backend
-──────────────          ────────────────────────────         ───────────────
-  │                                         │                    │
-  ├─ POST /v1/chat/completions ───────────► │                    │
-  │                                         ├─ Rate limiter     │
-  │                                         │   (60 req/min/IP) │
-  │                                         ├─ Request queue    │
-  │                                         │   (asyncio.Semaphore) │
-  │                                         └────────────────────┤
-  │                                                         ▼
-  │                                            Model processes
-  │                                            (Ollama or vLLM)
-  │                                                         │
-  │                                           Response in
-  │                                           OpenAI format
-  │                                                         │
-  │◄── Streaming or non-streaming JSON response ────────────│
-```
+- OpenAI-compatible `POST /v1/chat/completions` for non-streaming and SSE streaming responses.
+- Ollama and vLLM request adapters selected by `BACKEND_TYPE`.
+- A bounded in-process request queue. Full capacity returns `503` with `Retry-After`.
+- Token-bucket rate limiting: configured API keys use their own limits; requests without a configured key use the client IP fallback.
+- `Retry-After` on rate-limit responses, request IDs in `X-Request-ID`, and JSON request-completion logs.
+- Request timeout and client-disconnect cancellation, with queue-slot cleanup.
+- Prometheus metrics at `/metrics`, including queue depth, cancellation/timeout counts, time-to-first-token, and the latest streaming tokens/sec.
+- `/health`, `/ready`, and `/queue/status` endpoints.
+- Helm templates for CPU/Ollama and GPU/vLLM deployment, raw Kubernetes manifests, and Terraform for the optional EKS path.
 
-### Why two services?
+### API-key configuration
 
-The **gateway** is stateless, horizontally scalable, and CPU-cheap. The **model backend** holds model weights in GPU memory — expensive to scale, slow to start. Decoupling them lets you add gateway replicas for traffic spikes without touching the GPU.
-
-### One-flag switch: local → GPU
-
-The entire difference between running on your laptop and running on a T4 is two YAML files. No code changes, no branches.
+`API_KEYS` is a JSON object mapping keys to requests per minute:
 
 ```bash
-# Local — CPU, free, runs in Docker
-helm install llm-chat ./chart -f chart/values.yaml
-
-# AWS EKS — NVIDIA T4 spot (~$0.15/hr)
-helm install llm-chat ./chart -f chart/values-gpu.yaml
+API_KEYS='{"reviewer-key":30,"service-key":120}' \
+  uvicorn gateway.main:app --host 0.0.0.0 --port 8080
 ```
 
-| Setting | Local | GPU (EKS) |
-|---------|-------|-----------|
-| model.backend | ollama | vllm |
-| model.name | gemma3:1b | mistralai/Mistral-7B-Instruct-v0.2 |
-| model.backendPort | 11434 | 8000 |
-| gpu.enabled | false | true |
-| gateway.replicas | 1 | 2 |
-| autoscaling.enabled | false | true |
+Use either `X-API-Key: reviewer-key` or `Authorization: Bearer reviewer-key`. An unknown key is treated as an IP-fallback request; this project does not provide user provisioning or persistent distributed rate-limit storage.
 
----
-
-## Kubernetes GPU scheduling
-
-Three things must be true for a pod to land on a GPU node:
-
-1. NVIDIA Device Plugin DaemonSet — runs on every GPU node, registers nvidia.com/gpu as a schedulable resource.
-2. Taint + Toleration — GPU nodes are tainted nvidia.com/gpu=true:NoSchedule.
-3. Resource request — the model container requests nvidia.com/gpu: 1.
-
----
-
-## Autoscaling
-
-The HPA scales the **gateway**, not the model backend (GPU cold start is too slow for reactive scaling). Two metrics drive scaling simultaneously:
-
-- CPU utilisation — triggers when gateways are compute-bound
-- llm_chat_queue_depth — custom Prometheus metric via prometheus-adapter
-
-Queue-depth scaling fires earlier and more predictably than CPU alone. A slow model will fill the queue before it stresses the gateway's CPU.
-
-The model backend uses Karpenter to watch for unschedulable pods, provision a new node, and land the pod within 2-3 minutes. GPU nodes cost money — you only want them when needed.
-
----
-
-## Monitoring
-
-Prometheus scrapes the gateway at :9090/metrics. Key metrics:
-
-| Metric | Type | Purpose |
-|--------|------|---------|
-| llm_chat_requests_total | Counter | Request rate and error rate |
-| llm_chat_request_duration_seconds | Histogram | Latency SLOs p50/p95/p99 |
-| llm_chat_queue_depth | Gauge | HPA trigger + capacity planning |
-| llm_chat_tokens_total | Counter | Throughput and cost estimation |
-| llm_chat_active_requests | Gauge | Concurrency — saturated early |
-| llm_chat_backend_errors_total | Counter | Backend health by error type |
-
-Grafana dashboard: k8s/monitoring/grafana-dashboard.json (12 panels).
-
----
-
-## Repository layout
-
-```
-.
-├── README.md
-├── ARCHITECTURE.md
-├── LICENSE
-├── requirements.txt
-├── Makefile
-├── .gitignore
-│
-├── gateway/
-│   ├── main.py           Routes, queue, rate limiter, adapters
-│   ├── config.py         pydantic-settings configuration
-│   ├── metrics.py        Prometheus metrics
-│   ├── queue.py          Async request queue
-│   └── Dockerfile        Container image build
-│
-├── chart/                 Helm chart
-│   ├── Chart.yaml
-│   ├── values.yaml
-│   ├── values-local.yaml # CPU-only local configuration
-│   ├── values-gpu.yaml   # AWS EKS GPU configuration
-│   └── templates/        Helm templates
-│       ├── configmap.yaml
-│       ├── gateway/      deployment, service, HPA
-│       └── model/        deployment, service
-│
-├── k8s/                   Raw Kubernetes manifests
-│   ├── gateway/           deployment.yaml, service.yaml, hpa.yaml
-│   ├── model/             configmap.yaml, deployment.yaml, service.yaml
-│   ├── monitoring/        ServiceMonitor + Grafana dashboard JSON
-│   └── nvidia-device-plugin.yaml
-│
-├── infra/                 Terraform
-│   ├── main.tf
-│   └── variables.tf
-│
-└── tests/                 Test suite (empty contributors welcome)
-```
-
----
-
-## Prerequisites
-
-- Docker (for local runs)
-- Kubernetes 1.24+ (for deployment)
-- Helm 3.0+ (for Helm-based deployment)
-- Terraform 1.5+ (for cloud infrastructure)
-- NVIDIA GPU + Device Plugin (for GPU deployment)
-
----
-
-## Getting started
-
-### Local development
+### Streaming
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn gateway.main:app --reload
+curl -N -s http://localhost:8080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"tinyllama","stream":true,"messages":[{"role":"user","content":"Count to three."}]}'
 ```
 
-### Kubernetes (Helm)
+## Architecture
+
+```mermaid
+flowchart LR
+  Client --> Gateway
+  Gateway --> Queue[Bounded queue]
+  Queue --> Adapter{Backend adapter}
+  Adapter --> Ollama
+  Adapter --> vLLM
+  Gateway --> Metrics[Prometheus /metrics]
+  Metrics --> Grafana
+```
+
+The gateway listens on pod port `8080`. Kubernetes Services expose it on port `80` and name the target port `http`; the ServiceMonitor scrapes that named service port at `/metrics`.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the design decisions and known limitations.
+
+## Local Kubernetes
+
+The no-cloud path uses kind (or an equivalent local Kubernetes cluster):
 
 ```bash
-helm install llm-chat ./chart
+make kind-up
+make kind-deploy
 ```
 
-### Kubernetes (raw manifests)
+The EKS/GPU path is optional:
 
 ```bash
-kubectl apply -f k8s/model/configmap.yaml
-kubectl apply -f k8s/model/deployment.yaml
-kubectl apply -f k8s/model/service.yaml
-kubectl apply -f k8s/gateway/deployment.yaml
-kubectl apply -f k8s/gateway/service.yaml
+helm upgrade --install llm-chat ./chart \
+  -f chart/values.yaml -f chart/values-gpu.yaml
 ```
 
-### Terraform / cloud
+The default Helm values use a 60 requests-per-minute limit and port `8080`. Local overrides use the same limit:
 
 ```bash
-terraform init
-terraform plan -var="region=us-east-1"
-terraform apply
+helm upgrade --install llm-chat ./chart -f chart/values-local.yaml
 ```
 
----
+## Benchmarks
 
-## License
+No benchmark numbers are committed. Run `make loadtest` only when the gateway and model are available; it runs the 10-, 50-, and 100-concurrent-user k6 scenarios and writes the command output to `docs/results.md`.
 
-MIT © 2026 — Hassnain2003
+| Concurrent users | Requests/sec | p95 latency | Error rate |
+|---:|---:|---:|---:|
+| 10 | TODO - run `make loadtest` | TODO - run `make loadtest` | TODO - run `make loadtest` |
+| 50 | TODO - run `make loadtest` | TODO - run `make loadtest` | TODO - run `make loadtest` |
+| 100 | TODO - run `make loadtest` | TODO - run `make loadtest` | TODO - run `make loadtest` |
 
----
+Hardware: `TODO - record CPU/GPU, RAM, and storage`.
 
-## Contributing
+Model: `TODO - record exact model name and quantization`.
 
-Contributions welcome! This is a fresh project and there is plenty of room for improvement:
+## Limitations
 
-- Add integration tests (tests/)
-- Add OpenAPI/Swagger docs
-- Add CI/CD pipeline
-- Add more model adapters (LM Studio, TGI, etc.)
-- Improve Grafana dashboard panels
-- Add e2e deployment scripts
+- Rate-limit state and queue depth are process-local; multiple replicas do not share them.
+- The gateway does not include authentication, model downloads, or persistent request storage.
+- The in-process queue bounds work per gateway process, not globally.
+- The EKS Terraform and GPU manifests are deployment starting points and still need environment-specific review.
+- Grafana screenshots are intentionally left for a real local run in [docs/screenshots](docs/screenshots).
 
-Please open an issue or submit a pull request.
+## Roadmap
+
+- Add a shared rate-limit backend for multi-replica deployments.
+- Add integration tests that run against disposable Ollama and vLLM-compatible backends.
+- Add a documented production ingress/authentication example.
+- Fill the benchmark table and add Grafana screenshots from measured runs.
+
+## Acknowledgments
+
+This project was inspired by [lmenta/inferenceforge](https://github.com/lmenta/inferenceforge). The upstream repository did not expose a license in its repository metadata or contain a `LICENSE` file when checked; this project therefore keeps the inspiration attribution but does not copy an upstream license notice. This repository is independently licensed under the MIT License; see [LICENSE](LICENSE).
