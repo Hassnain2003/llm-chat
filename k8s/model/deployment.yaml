@@ -38,7 +38,7 @@ spec:
       containers:
         - name: model-backend
           # Local: use Ollama. GPU (AWS): swap to vllm image.
-          image: ollama/ollama:latest
+          image: ollama/ollama:0.5.7
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 11434
