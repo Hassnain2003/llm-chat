@@ -207,7 +207,6 @@ The following metric families are emitted by the gateway and are checked by the 
 - The gateway does not include authentication, model downloads, or persistent request storage.
 - The in-process queue bounds work per gateway process, not globally.
 - The EKS Terraform, GPU manifests, and optional HPA/custom-metrics path are deployment starting points and were not applied or autoscaling-tested here.
-- Grafana screenshots are intentionally left for a real local run in [docs/screenshots](docs/screenshots).
 
 ## Roadmap
 
@@ -215,7 +214,3 @@ The following metric families are emitted by the gateway and are checked by the 
 - Add integration tests that run against disposable Ollama and vLLM-compatible backends.
 - Add a documented production ingress/authentication example.
 - Add Grafana screenshots from measured runs.
-
-## Acknowledgments
-
-Inspired by [lmenta/inferenceforge](https://github.com/lmenta/inferenceforge). This repository is independently implemented and licensed under MIT.
